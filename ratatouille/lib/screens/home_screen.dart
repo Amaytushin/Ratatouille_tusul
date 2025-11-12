@@ -4,6 +4,21 @@ import 'package:http/http.dart' as http;
 import 'RecipeDetailScreen.dart';
 import 'search_screen.dart';
 
+// 🔹 Favorites screen placeholder
+class FavoritesScreen extends StatelessWidget {
+  const FavoritesScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text(
+        'Your Favorite Recipes',
+        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -16,12 +31,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int selectedCategoryIndex = 0;
   int selectedBottomIndex = 0;
 
-  List<Map<String, dynamic>> recipes = []; // Backend-с ирэх recipe list
+  List<Map<String, dynamic>> recipes = [];
 
   late final AnimationController _controller;
   late final Animation<double> _featuredScale;
   late final Animation<double> _featuredFade;
   late final Animation<double> _bottomFade;
+
+  // ✅ SearchScreen object live хадгалах
+  late final SearchScreen _searchScreen;
 
   @override
   void initState() {
@@ -48,6 +66,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     _loadCategories();
     _loadRecipes();
+
+    _searchScreen = const SearchScreen(); // live state хадгалагдана
   }
 
   @override
@@ -56,7 +76,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // Backend-аас category татах
   Future<void> _loadCategories() async {
     try {
       final response = await http.get(Uri.parse('http://127.0.0.1:8000/api/categories/'));
@@ -66,14 +85,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           categories = data.map<String>((cat) => cat['name'] as String).toList();
         });
       } else {
-        print('Failed to load categories: ${response.statusCode}');
+        debugPrint('Failed to load categories: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching categories: $e');
+      debugPrint('Error fetching categories: $e');
     }
   }
 
-  // Backend-аас recipe татах, category filter-тэй
   Future<void> _loadRecipes({String? category}) async {
     try {
       String url = 'http://127.0.0.1:8000/api/recipes/';
@@ -85,30 +103,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         List data = json.decode(response.body);
         setState(() {
           recipes = data.map<Map<String, dynamic>>((recipe) => {
-            'name': recipe['name'],
-            'time': recipe['time_required'],
-            'servings': recipe['servings'].toString(),
-            'cuisine': recipe['cuisine'],
-            'image': recipe['image'],
-          }).toList();
+                'name': recipe['name'],
+                'time': recipe['time_required'],
+                'servings': recipe['servings'].toString(),
+                'cuisine': recipe['cuisine'],
+                'image': recipe['image'],
+              }).toList();
         });
       } else {
-        print('Failed to load recipes: ${response.statusCode}');
+        debugPrint('Failed to load recipes: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching recipes: $e');
+      debugPrint('Error fetching recipes: $e');
     }
   }
 
-  // Recipe card
   Widget _recipeCard(Map<String, dynamic> recipe) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => RecipeDetailScreen(recipe: recipe),
-          ),
+          MaterialPageRoute(builder: (context) => RecipeDetailScreen(recipe: recipe)),
         );
       },
       child: ClipRRect(
@@ -148,7 +163,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // Featured recipe widget
   Widget _featuredRecipe(Map<String, dynamic> recipe) {
     if (recipe.isEmpty) return const SizedBox.shrink();
 
@@ -156,9 +170,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => RecipeDetailScreen(recipe: recipe),
-          ),
+          MaterialPageRoute(builder: (context) => RecipeDetailScreen(recipe: recipe)),
         );
       },
       child: FadeTransition(
@@ -228,30 +240,100 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  // Bottom navigation
-  Widget _bottomNavigation() {
-    return FadeTransition(
-      opacity: _bottomFade,
-      child: BottomNavigationBar(
-        currentIndex: selectedBottomIndex,
-        onTap: (index) {
-          setState(() {
-            selectedBottomIndex = index;
-          });
-
-          if (index == 1) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SearchScreen()),
-            );
-          }
-        },
-        selectedItemColor: const Color(0xFF7C3AED),
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Recipes'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite), label: 'Favorites'),
+  Widget _homePage() {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header image
+          Container(
+            width: double.infinity,
+            height: 120,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              image: const DecorationImage(
+                image: AssetImage('assets/images/ratatouille.jpg'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Center(
+            child: Text(
+              'Ratatouille',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF4C1D95),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _featuredRecipe(recipes.isNotEmpty ? recipes[0] : {}),
+          const SizedBox(height: 20),
+          // Categories
+          SizedBox(
+            height: 50,
+            child: categories.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: categories.length,
+                    itemBuilder: (context, index) {
+                      final isSelected = index == selectedCategoryIndex;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 14),
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              selectedCategoryIndex = index;
+                            });
+                            _loadRecipes(category: categories[index]);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            decoration: BoxDecoration(
+                              gradient: isSelected
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFF7C3AED), Color(0xFFB37FEB)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                  : null,
+                              color: isSelected ? null : Colors.white,
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: Text(
+                              categories[index],
+                              style: TextStyle(
+                                color: isSelected ? Colors.white : const Color(0xFF7C3AED),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+          const SizedBox(height: 20),
+          // Recipes Grid
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 14,
+              mainAxisSpacing: 14,
+              childAspectRatio: 0.72,
+            ),
+            itemCount: recipes.length > 1 ? recipes.length - 1 : 0,
+            itemBuilder: (context, index) {
+              return _recipeCard(recipes[index + 1]);
+            },
+          ),
         ],
       ),
     );
@@ -259,111 +341,39 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      _homePage(),
+      _searchScreen, // ✅ live state хадгалагдана
+      const FavoritesScreen(),
+    ];
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header image
-                Container(
-                  width: double.infinity,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    image: const DecorationImage(
-                      image: AssetImage('assets/images/ratatouille.jpg'),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Center(
-                  child: Text(
-                    'Ratatouille',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF4C1D95),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Featured recipe
-                _featuredRecipe(recipes.isNotEmpty ? recipes[0] : {}),
-                const SizedBox(height: 20),
-                // Category horizontal list
-                SizedBox(
-                  height: 50,
-                  child: categories.isEmpty
-                      ? const Center(child: CircularProgressIndicator())
-                      : ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: categories.length,
-                          itemBuilder: (context, index) {
-                            final isSelected = index == selectedCategoryIndex;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 14),
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    selectedCategoryIndex = index;
-                                  });
-                                  _loadRecipes(category: categories[index]);
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 300),
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    gradient: isSelected
-                                        ? const LinearGradient(
-                                            colors: [Color(0xFF7C3AED), Color(0xFFB37FEB)],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          )
-                                        : null,
-                                    color: isSelected ? null : Colors.white,
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  child: Text(
-                                    categories[index],
-                                    style: TextStyle(
-                                      color: isSelected ? Colors.white : const Color(0xFF7C3AED),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-                const SizedBox(height: 20),
-                // Grid of recipes
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    childAspectRatio: 0.72,
-                  ),
-                  itemCount: recipes.length > 1 ? recipes.length - 1 : 0,
-                  itemBuilder: (context, index) {
-                    return _recipeCard(recipes[index + 1]);
-                  },
-                ),
-              ],
-            ),
-          ),
+        child: IndexedStack(
+          index: selectedBottomIndex,
+          children: pages,
         ),
       ),
-      bottomNavigationBar: _bottomNavigation(),
+      bottomNavigationBar: FadeTransition(
+        opacity: _bottomFade,
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          currentIndex: selectedBottomIndex,
+          onTap: (index) {
+            setState(() {
+              selectedBottomIndex = index;
+            });
+          },
+          selectedItemColor: const Color(0xFF7C3AED),
+          unselectedItemColor: Colors.grey,
+          items: const [
+            BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Recipes'),
+            BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+            BottomNavigationBarItem(icon: Icon(Icons.favorite), label: 'Favorites'),
+          ],
+        ),
+      ),
     );
   }
 }
