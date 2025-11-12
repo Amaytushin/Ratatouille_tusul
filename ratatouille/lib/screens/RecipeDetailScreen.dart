@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 
 class RecipeDetailScreen extends StatelessWidget {
-  final Map<String, String> recipe;
+  final Map<String, dynamic> recipe;
 
   const RecipeDetailScreen({super.key, required this.recipe});
 
   @override
   Widget build(BuildContext context) {
+    // Backend-аас ирсэн list/map-г default гаргах
+    List<dynamic> ingredients = recipe['ingredients'] ?? [];
+    List<dynamic> steps = recipe['steps'] ?? [];
+    Map<String, dynamic> nutrition = recipe['nutritions'] ?? {};
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -26,25 +31,25 @@ class RecipeDetailScreen extends StatelessWidget {
               ),
             ),
           ),
-
-          // 🧾 Scrollable content
           SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Hero Image Section
                 Hero(
-                  tag: recipe['name']!,
+                  tag: recipe['name'] ?? '',
                   child: ClipRRect(
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(32),
                       bottomRight: Radius.circular(32),
                     ),
-                    child: Image.asset(
-                      recipe['image']!,
+                    child: Image.network(
+                      recipe['image'] ?? '',
                       width: double.infinity,
                       height: 280,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Image.asset('assets/images/placeholder.png', fit: BoxFit.cover),
                     ),
                   ),
                 ),
@@ -69,7 +74,7 @@ class RecipeDetailScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        recipe['name']!,
+                        recipe['name'] ?? '',
                         style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
@@ -80,53 +85,38 @@ class RecipeDetailScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _infoChip(Icons.timer, recipe['time']!),
-                          _infoChip(Icons.people, recipe['servings']!),
-                          _infoChip(Icons.flag, recipe['cuisine']!),
+                          _infoChip(Icons.timer, recipe['time']?.toString() ?? ''),
+                          _infoChip(Icons.people, recipe['servings']?.toString() ?? ''),
+                          _infoChip(Icons.flag, recipe['cuisine'] ?? ''),
                         ],
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 28),
 
                 // 🍅 Ingredients Section
                 _sectionTitle("🧂 Орц"),
-                _ingredientsList([
-                  "500г үхрийн стек",
-                  "2 халбага оливын тос",
-                  "1 халбага давс",
-                  "Хагас халбага перц",
-                  "2 хумс сармис(хэрчсэн)",
-                  "Чимэглэлийн зориулалттай ногоо"
-                ]),
+                _ingredientsList(ingredients.map<String>((e) => e.toString()).toList()),
 
                 const SizedBox(height: 24),
 
                 // 🟣 Илчлэгийн дэлгэрэнгүй хэсэг
-                _sectionTitle(" Илчлэг"),
-                _nutritionInfoCard({
-                  "Калори": "520 kcal",
-                  "Уураг": "42 g",
-                  "Өөх тос": "32 g",
-                  "Нүүрс ус": "5 g",
-                }),
-
+               _sectionTitle("🍏 Илчлэг"),
+              _nutritionInfoCard({
+                "Илчлэг": nutrition['calories'] ?? 'N/A',
+                "Уураг": nutrition['protein'] ?? 'N/A',
+                "Өөх тос": nutrition['fat'] ?? 'N/A',
+                "Нүүрс ус": nutrition['carbs'] ?? 'N/A',
+              }),
                 const SizedBox(height: 24),
 
                 // 🍳 Cooking Steps Section
                 _sectionTitle("👨‍🍳 Хоол хийх алхамууд"),
-                _cookingSteps([
-                  "Шарсан мах эсвэл тогоогоо дунд зэргийн халуунд урьдчилан халаана.",
-                  "Стейкийг оливын тосоор тосолж, хоёр талыг нь давс, перцээр амтлана.",
-                  "Тал бүрийг 4-5 минутын турш эсвэл хүссэн бэлэн болтол нь жигнэх.",
-                  "Хоол хийх сүүлийн минутанд жижиглэсэн сармис нэмнэ.",
-                  "Стейкийг зооглохоосоо өмнө 5 минут амраа.",
-                  "Яншуй, базилик, гоньд гэх мэт шинэхэн ургамлаар уран сэтгэмжээрээ чимэглээд, амтархан идээрэй.!"
-                ]),
+                _cookingSteps(
+                  steps.map<String>((item) => item['description'].toString()).toList()),
 
-                const SizedBox(height: 30), // End padding after steps
+                const SizedBox(height: 30),
               ],
             ),
           ),
@@ -203,7 +193,7 @@ class RecipeDetailScreen extends StatelessWidget {
     );
   }
 
-  // 🔹 Nutrition Info Card (илчлэг)
+  // 🔹 Nutrition Info Card
   Widget _nutritionInfoCard(Map<String, String> nutrients) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -220,33 +210,33 @@ class RecipeDetailScreen extends StatelessWidget {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: nutrients.entries.map((entry) {
-          return Column(
-            children: [
-              Text(
-                entry.key,
-                style: const TextStyle(
-                  color: Color(0xFF7C3AED),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: nutrients.entries.map((entry) {
+        return Column(
+          children: [
+            Text(
+              entry.key,
+              style: const TextStyle(
+                color: Color(0xFF7C3AED),
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
-              const SizedBox(height: 6),
-              Text(
-                entry.value,
-                style: const TextStyle(
-                  color: Color(0xFF4A148C),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              entry.value,
+              style: const TextStyle(
+                color: Color(0xFF4A148C),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
+            ),
+          ],
+        );
+      }).toList(),
+    ),
+  );
+}
 
   // 🔹 Cooking Steps
   Widget _cookingSteps(List<String> steps) {

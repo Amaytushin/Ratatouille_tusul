@@ -1,4 +1,8 @@
+// search_screen.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'SearchResultScreen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -11,78 +15,44 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _controller = TextEditingController();
 
   final Map<String, List<String>> pantryCategories = {
-    'Мах': [
-      'үхрийн мах', 'гахайн мах', 'тахианы мах', 'загас', 'хонины мах', 'тахианы цээж мах'
-    ],
+    'Мах': ['үхрийн мах', 'гахайн мах', 'тахианы мах', 'загас', 'хонины мах', 'тахианы цээж мах'],
     'Хүнсний ногоо ба навчит ургамал': [
-      'сармис', 'сонгино', 'бөөрөнхий чинжүү', 'ногоон сонгино',
+      'сармис', 'бууцай', 'бөөрөнхий чинжүү', 'ногоон сонгино',
       'лууван', 'улаан лооль', 'төмс', 'улаан сонгино', 'сельдерей', 'авокадо'
     ],
-    'Мөөг': [
-      'цагаан мөөг', 'портобелло мөөг', 'шитаке мөөг',
-      'порчини мөөг', 'хясаан мөөг', 'энооки мөөг'
-    ],
-    'Жимс': [
-      'алим', 'банана', 'жүрж', 'нимбэг', 'манго', 'хан боргоцой', 'гадил', 'үзэм'
-    ],
-    'Жимсгэнэ': [
-      'гүзээлзгэнэ', 'хөх нэрс', 'үхрийн нүд', 'тошлой', 'жимсний холимог'
-    ],
-    'Бяслаг': [
-      'чеддар', 'моцарелла', 'пармезан', 'бри', 'фета', 'крем бяслаг'
-    ],
+    'Мөөг': ['цагаан мөөг', 'портобелло мөөг', 'шитаке мөөг','порчини мөөг', 'хясаан мөөг', 'энооки мөөг'],
+    'Жимс': ['алим', 'банана', 'жүрж', 'нимбэг', 'манго', 'хан боргоцой', 'гадил', 'үзэм'],
+    'Жимсгэнэ': ['гүзээлзгэнэ', 'хөх нэрс', 'үхрийн нүд', 'тошлой', 'жимсний холимог'],
+    'Бяслаг': ['чеддар', 'моцарелла', 'пармезан', 'бри', 'фета', 'крем бяслаг'],
     'Гал тогооны үндсэн зүйлс': [
-      'цөцгийн тос', 'өндөг', 'сүү', 'элсэн чихэр',
-      'гурил', 'оливийн тос', 'сармисны нунтаг', 'цагаан будаа',
-      'кетчуп', 'шар буурцгийн сүмс', 'майонез', 'талх',
-      'бөөлжгөөний нунтаг', 'орегано', 'төмс', 'паприка',
+      'цөцгийн тос', 'өндөг', 'сүү', 'элсэн чихэр','гурил', 'оливийн тос', 'сармисны нунтаг', 'цагаан будаа',
+      'кетчуп', 'шар буурцгийн сүмс', 'майонез', 'талх','бөөлжгөөний нунтаг', 'орегано', 'төмс', 'паприка',
       'спагетти', 'газрын самрын тос', 'чинжүү нунтаг', 'чеддар бяслаг',
       'улаан лооль', 'базил', 'яншуй'
     ],
-    'Нарийн боовны зүйлс': [
-      'гурил', 'нарийн боовны нунтаг', 'ваниль', 'жигд нунтаг', 'какао', 'зөгийн бал'
-    ],
+    'Нарийн боовны зүйлс': ['гурил', 'нарийн боовны нунтаг', 'ваниль', 'жигд нунтаг', 'какао', 'зөгийн бал'],
   };
 
   final Set<String> selectedItems = {};
+  bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        backgroundColor: const Color(0xFF6D28D9), // LoginScreen шиг нил ягаан
-        title: const Text(
-            'Орц сонгох',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        backgroundColor: const Color(0xFF6D28D9),
+        title: const Text('Орц сонгох', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
-        actions: const [
-            Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0),
-            child: Icon(Icons.sort_by_alpha, color: Colors.white),
-            )
-        ],
-        ),
+      ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ✅ HEADER хэсэг — зураг + хайлтын хэсэг
+            // Header + Search Bar
             Stack(
               children: [
-                Image.asset(
-                  'assets/images/rat2.jpg',
-                  width: double.infinity,
-                  height: 200,
-                  fit: BoxFit.cover,
-                ),
-                Container(
-                  width: double.infinity,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.1),
-                  ),
-                ),
+                Image.asset('assets/images/rat2.jpg', width: double.infinity, height: 200, fit: BoxFit.cover),
+                Container(width: double.infinity, height: 200, color: Colors.black.withOpacity(0.2)),
                 Positioned.fill(
                   child: Align(
                     alignment: Alignment.center,
@@ -91,7 +61,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       child: TextField(
                         controller: _controller,
                         decoration: InputDecoration(
-                          hintText: 'орц хайх...',
+                          hintText: 'Орц хайх...',
                           filled: true,
                           fillColor: Colors.white,
                           prefixIcon: const Icon(Icons.search, color: Color(0xFF6D28D9)),
@@ -106,19 +76,17 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
 
-            // ✅ Категориуд (бүгд нээлттэй)
+            // Pantry categories
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: pantryCategories.entries.map((entry) {
-                  final category = entry.key;
-                  final items = entry.value;
-                  return _buildAlwaysExpandedCategory(category, items);
+                  return _buildAlwaysExpandedCategory(entry.key, entry.value);
                 }).toList(),
               ),
             ),
-
             const SizedBox(height: 70),
           ],
         ),
@@ -133,12 +101,14 @@ class _SearchScreenState extends State<SearchScreen> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF6D28D9),
+                backgroundColor: const Color(0xFF6D28D9),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
               ),
-              onPressed: () {},
-              child: const Text("Жорууд харах", style: TextStyle(color: Colors.white)),
+              onPressed: isLoading ? null : _searchRecipes,
+              child: isLoading
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text("Жорууд харах", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -146,7 +116,35 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  /// ✅ Категори бүгд анхнаасаа нээлттэй байх
+  void _searchRecipes() async {
+    if (selectedItems.isEmpty) return;
+
+    setState(() => isLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:8000/api/search_recipes/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'ingredients': selectedItems.toList()}),
+      );
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SearchResultScreen(recipes: data),
+          ),
+        );
+      } else {
+        debugPrint('Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Exception: $e');
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
   Widget _buildAlwaysExpandedCategory(String category, List<String> items) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -154,49 +152,33 @@ class _SearchScreenState extends State<SearchScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              category,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Wrap(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(category, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 10),
+          Wrap(
             spacing: 8,
             runSpacing: 8,
             children: items.map((item) {
-                final isSelected = selectedItems.contains(item);
-                return FilterChip(
-                label: Text(
-                    item,
-                    style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black87,
-                    fontWeight: FontWeight.w500,
-                    ),
-                ),
+              final isSelected = selectedItems.contains(item);
+              return FilterChip(
+                label: Text(item, style: TextStyle(color: isSelected ? Colors.white : Colors.black87)),
                 selected: isSelected,
                 selectedColor: const Color(0xFF6D28D9),
                 backgroundColor: Colors.grey[200],
-                checkmarkColor: Colors.transparent, 
+                checkmarkColor: Colors.transparent,
                 onSelected: (_) {
-                    setState(() {
+                  setState(() {
                     if (isSelected) {
-                        selectedItems.remove(item);
+                      selectedItems.remove(item);
                     } else {
-                        selectedItems.add(item);
+                      selectedItems.add(item);
                     }
-                    });
+                  });
                 },
-                );
+              );
             }).toList(),
-            ),
-          ],
-        ),
+          ),
+        ]),
       ),
     );
   }

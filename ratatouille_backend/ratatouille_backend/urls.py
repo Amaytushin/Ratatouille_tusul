@@ -18,18 +18,22 @@ from django.contrib import admin
 from django.urls import path,include
 from jor_app.views import *
 from rest_framework import routers
-from .settings import *
-from ratatouille_backend import settings
+from django.conf import settings
 from django.conf.urls.static import static
 
 router = routers.DefaultRouter()
 router.register(r'recipes', RecipeViewSet)
 router.register(r'categories', CategoryViewSet)
+router.register(r'users', UserViewSet)
+router.register(r'ingredients', IngredientViewSet)
+# router.register(r'steps', CookingStepViewSet)
+router.register(r'nutritions', NutritionViewSet)
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/',include(router.urls)),
+    path('api/search_recipes/', search_recipes),
 ]
 
 if settings.DEBUG:

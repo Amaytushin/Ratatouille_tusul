@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'RecipeDetailScreen.dart';
-import 'search_screen.dart'; // SearchScreen холбож байна
+import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,33 +12,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
-  final List<String> categories = ['Өглөөний цай', 'Оройн хоол', 'Фитнэс хоол', 'Кето дэглэм'];
+  List<String> categories = [];
   int selectedCategoryIndex = 0;
   int selectedBottomIndex = 0;
 
-  final List<Map<String, String>> recipes = [
-    {
-      'name': 'Банштай цай',
-      'time': '35 mins',
-      'servings': '4',
-      'cuisine': 'Mongolia',
-      'image': 'assets/images/bansh.jpg',
-    },
-    {
-      'name': 'Үхрийн махан Стек',
-      'time': '45 минут',
-      'servings': '2',
-      'cuisine': 'Америк',
-      'image': 'assets/images/beef1.jpg',
-    },
-    {
-      'name': 'Гриллдэж шарсан үхрийн мах',
-      'time': '50 минут',
-      'servings': '4',
-      'cuisine': 'Франц',
-      'image': 'assets/images/beef2.jpg',
-    },
-  ];
+  List<Map<String, dynamic>> recipes = []; // Backend-с ирэх recipe list
 
   late final AnimationController _controller;
   late final Animation<double> _featuredScale;
@@ -65,6 +45,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
 
     _controller.forward();
+
+    _loadCategories();
+    _loadRecipes();
   }
 
   @override
@@ -73,7 +56,52 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  Widget _recipeCard(Map<String, String> recipe, int index) {
+  // Backend-аас category татах
+  Future<void> _loadCategories() async {
+    try {
+      final response = await http.get(Uri.parse('http://127.0.0.1:8000/api/categories/'));
+      if (response.statusCode == 200) {
+        List data = json.decode(response.body);
+        setState(() {
+          categories = data.map<String>((cat) => cat['name'] as String).toList();
+        });
+      } else {
+        print('Failed to load categories: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching categories: $e');
+    }
+  }
+
+  // Backend-аас recipe татах, category filter-тэй
+  Future<void> _loadRecipes({String? category}) async {
+    try {
+      String url = 'http://127.0.0.1:8000/api/recipes/';
+      if (category != null) {
+        url += 'by_category/?category=$category';
+      }
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        List data = json.decode(response.body);
+        setState(() {
+          recipes = data.map<Map<String, dynamic>>((recipe) => {
+            'name': recipe['name'],
+            'time': recipe['time_required'],
+            'servings': recipe['servings'].toString(),
+            'cuisine': recipe['cuisine'],
+            'image': recipe['image'],
+          }).toList();
+        });
+      } else {
+        print('Failed to load recipes: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching recipes: $e');
+    }
+  }
+
+  // Recipe card
+  Widget _recipeCard(Map<String, dynamic> recipe) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -87,11 +115,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         borderRadius: BorderRadius.circular(20),
         child: Stack(
           children: [
-            Image.asset(
-              recipe['image']!,
+            Image.network(
+              recipe['image'] ?? '',
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
+              errorBuilder: (context, error, stackTrace) =>
+                  Image.asset('assets/images/placeholder.png', fit: BoxFit.cover),
             ),
             Positioned(
               bottom: 0,
@@ -107,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 child: Text(
-                  recipe['name']!,
+                  recipe['name'] ?? '',
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
@@ -118,76 +148,87 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _featuredRecipe(Map<String, String> recipe) {
-    return FadeTransition(
-      opacity: _featuredFade,
-      child: ScaleTransition(
-        scale: _featuredScale,
-        child: Container(
-          height: 200,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.purple.withOpacity(0.2),
-                blurRadius: 15,
-                offset: const Offset(0, 8),
-              )
-            ],
+  // Featured recipe widget
+  Widget _featuredRecipe(Map<String, dynamic> recipe) {
+    if (recipe.isEmpty) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RecipeDetailScreen(recipe: recipe),
           ),
-          child: Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.asset(
-                  recipe['image']!,
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Container(
-                decoration: BoxDecoration(
+        );
+      },
+      child: FadeTransition(
+        opacity: _featuredFade,
+        child: ScaleTransition(
+          scale: _featuredScale,
+          child: Container(
+            height: 200,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.purple.withOpacity(0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                )
+              ],
+            ),
+            child: Stack(
+              children: [
+                ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    colors: [Colors.transparent, Colors.black.withOpacity(0.6)],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+                  child: Image.network(
+                    recipe['image'] ?? '',
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        Image.asset('assets/images/placeholder.png', fit: BoxFit.cover),
                   ),
                 ),
-              ),
-              Positioned(
-                bottom: 16,
-                left: 16,
-                right: 16,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      recipe['name']!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black38,
-                            offset: Offset(1, 1),
-                            blurRadius: 2,
-                          )
-                        ],
-                      ),
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: LinearGradient(
+                      colors: [Colors.transparent, Colors.black.withOpacity(0.6)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                Positioned(
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                  child: Text(
+                    recipe['name'] ?? '',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black38,
+                          offset: Offset(1, 1),
+                          blurRadius: 2,
+                        )
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
+  // Bottom navigation
   Widget _bottomNavigation() {
     return FadeTransition(
       opacity: _bottomFade,
@@ -201,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           if (index == 1) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => SearchScreen()),
+              MaterialPageRoute(builder: (context) => const SearchScreen()),
             );
           }
         },
@@ -227,6 +268,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header image
                 Container(
                   width: double.infinity,
                   height: 120,
@@ -250,52 +292,58 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
                 const SizedBox(height: 20),
-                _featuredRecipe(recipes[0]),
+                // Featured recipe
+                _featuredRecipe(recipes.isNotEmpty ? recipes[0] : {}),
                 const SizedBox(height: 20),
+                // Category horizontal list
                 SizedBox(
                   height: 50,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: categories.length,
-                    itemBuilder: (context, index) {
-                      final isSelected = index == selectedCategoryIndex;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 14),
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              selectedCategoryIndex = index;
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                            decoration: BoxDecoration(
-                              gradient: isSelected
-                                  ? const LinearGradient(
-                                      colors: [Color(0xFF7C3AED), Color(0xFFB37FEB)],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    )
-                                  : null,
-                              color: isSelected ? null : Colors.white,
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            child: Text(
-                              categories[index],
-                              style: TextStyle(
-                                color: isSelected ? Colors.white : const Color(0xFF7C3AED),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                  child: categories.isEmpty
+                      ? const Center(child: CircularProgressIndicator())
+                      : ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: categories.length,
+                          itemBuilder: (context, index) {
+                            final isSelected = index == selectedCategoryIndex;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 14),
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    selectedCategoryIndex = index;
+                                  });
+                                  _loadRecipes(category: categories[index]);
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    gradient: isSelected
+                                        ? const LinearGradient(
+                                            colors: [Color(0xFF7C3AED), Color(0xFFB37FEB)],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          )
+                                        : null,
+                                    color: isSelected ? null : Colors.white,
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  child: Text(
+                                    categories[index],
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : const Color(0xFF7C3AED),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                  ),
                 ),
                 const SizedBox(height: 20),
+                // Grid of recipes
                 GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -305,9 +353,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     mainAxisSpacing: 14,
                     childAspectRatio: 0.72,
                   ),
-                  itemCount: recipes.length - 1,
+                  itemCount: recipes.length > 1 ? recipes.length - 1 : 0,
                   itemBuilder: (context, index) {
-                    return _recipeCard(recipes[index + 1], index);
+                    return _recipeCard(recipes[index + 1]);
                   },
                 ),
               ],
