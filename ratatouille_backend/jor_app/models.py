@@ -23,6 +23,7 @@ class Category(models.Model):
 # 🔹 Орц
 class Ingredient(models.Model):
     name = models.CharField(max_length=50, unique=True)
+    number = models.CharField(max_length=100, null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name='ingredients')
 
     def __str__(self):

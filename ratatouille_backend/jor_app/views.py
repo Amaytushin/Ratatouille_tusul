@@ -37,12 +37,12 @@ def search_recipes(request):
     if not selected_ingredients:
         return Response({"recipes": []})
 
-    # Recipe-г filter хийх
     recipes = Recipe.objects.filter(
         ingredients__name__in=selected_ingredients
     ).distinct()
 
-    serializer = RecipeSerializer(recipes, many=True)
+    # 🔥 Энд request дамжуулна
+    serializer = RecipeSerializer(recipes, many=True, context={'request': request})
     return Response(serializer.data)
 
 class UserViewSet(viewsets.ModelViewSet):
