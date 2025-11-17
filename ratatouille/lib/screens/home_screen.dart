@@ -3,21 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'RecipeDetailScreen.dart';
 import 'search_screen.dart';
-
-// 🔹 Favorites screen placeholder
-class FavoritesScreen extends StatelessWidget {
-  const FavoritesScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Your Favorite Recipes',
-        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-}
+import 'favorites_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -32,13 +18,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int selectedBottomIndex = 0;
 
   List<Map<String, dynamic>> recipes = [];
+  List<Map<String, dynamic>> favorites = [];
 
   late final AnimationController _controller;
   late final Animation<double> _featuredScale;
   late final Animation<double> _featuredFade;
   late final Animation<double> _bottomFade;
 
-  // ✅ SearchScreen object live хадгалах
   late final SearchScreen _searchScreen;
 
   @override
@@ -67,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _loadCategories();
     _loadRecipes();
 
-    _searchScreen = const SearchScreen(); // live state хадгалагдана
+    _searchScreen = const SearchScreen();
   }
 
   @override
@@ -119,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _recipeCard(Map<String, dynamic> recipe) {
+    final isFavorite = favorites.contains(recipe);
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -132,9 +119,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           children: [
             Image.network(
               recipe['image'] ?? '',
-              fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
+              fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) =>
                   Image.asset('assets/images/placeholder.png', fit: BoxFit.cover),
             ),
@@ -143,18 +130,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               left: 0,
               right: 0,
               child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
                   color: Colors.black54,
-                  borderRadius: BorderRadius.only(
+                  borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(20),
                     bottomRight: Radius.circular(20),
                   ),
                 ),
                 child: Text(
                   recipe['name'] ?? '',
-                  style: const TextStyle(color: Colors.white),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: Icon(
+                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: Colors.red,
+                ),
+                onPressed: () {
+                  setState(() {
+                    if (isFavorite) {
+                      favorites.remove(recipe);
+                    } else {
+                      favorites.add(recipe);
+                    }
+                  });
+                },
               ),
             ),
           ],
@@ -165,6 +177,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _featuredRecipe(Map<String, dynamic> recipe) {
     if (recipe.isEmpty) return const SizedBox.shrink();
+    final isFavorite = favorites.contains(recipe);
 
     return GestureDetector(
       onTap: () {
@@ -223,13 +236,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       shadows: [
-                        Shadow(
-                          color: Colors.black38,
-                          offset: Offset(1, 1),
-                          blurRadius: 2,
-                        )
+                        Shadow(color: Colors.black38, offset: Offset(1, 1), blurRadius: 2)
                       ],
                     ),
+                  ),
+                ),
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: IconButton(
+                    icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: Colors.red),
+                    onPressed: () {
+                      setState(() {
+                        if (isFavorite) {
+                          favorites.remove(recipe);
+                        } else {
+                          favorites.add(recipe);
+                        }
+                      });
+                    },
                   ),
                 ),
               ],
@@ -242,13 +267,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _homePage() {
     return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header image
+          // 🔹 Header image + title
           Container(
             width: double.infinity,
             height: 120,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               image: const DecorationImage(
@@ -257,8 +284,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          const Center(
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
             child: Text(
               'Ratatouille',
               style: TextStyle(
@@ -269,9 +297,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 20),
+
+          // 🔹 Featured recipe
           _featuredRecipe(recipes.isNotEmpty ? recipes[0] : {}),
           const SizedBox(height: 20),
-          // Categories
+
+          // 🔹 Categories
           SizedBox(
             height: 50,
             child: categories.isEmpty
@@ -279,10 +310,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 : ListView.builder(
                     scrollDirection: Axis.horizontal,
                     itemCount: categories.length,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemBuilder: (context, index) {
                       final isSelected = index == selectedCategoryIndex;
                       return Padding(
-                        padding: const EdgeInsets.only(right: 14),
+                        padding: const EdgeInsets.only(right: 12),
                         child: GestureDetector(
                           onTap: () {
                             setState(() {
@@ -303,6 +335,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                   : null,
                               color: isSelected ? null : Colors.white,
                               borderRadius: BorderRadius.circular(30),
+                              border: isSelected ? null : Border.all(color: const Color(0xFF7C3AED)),
                             ),
                             child: Text(
                               categories[index],
@@ -319,21 +352,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
           ),
           const SizedBox(height: 20),
-          // Recipes Grid
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
-              childAspectRatio: 0.72,
+
+          // 🔹 Grid recipes
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: recipes.length > 1 ? recipes.length - 1 : 0,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                childAspectRatio: 0.72,
+              ),
+              itemBuilder: (context, index) {
+                return _recipeCard(recipes[index + 1]);
+              },
             ),
-            itemCount: recipes.length > 1 ? recipes.length - 1 : 0,
-            itemBuilder: (context, index) {
-              return _recipeCard(recipes[index + 1]);
-            },
           ),
+          const SizedBox(height: 80),
         ],
       ),
     );
@@ -341,19 +379,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> pages = [
+    final pages = [
       _homePage(),
-      _searchScreen, // ✅ live state хадгалагдана
-      const FavoritesScreen(),
+      _searchScreen,
+      FavoritesScreen(favorites: favorites),
     ];
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: IndexedStack(
-          index: selectedBottomIndex,
-          children: pages,
-        ),
+        child: IndexedStack(index: selectedBottomIndex, children: pages),
       ),
       bottomNavigationBar: FadeTransition(
         opacity: _bottomFade,
