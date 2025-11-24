@@ -1,4 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +16,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   late final Animation<Offset> _titleSlide;
   late final Animation<Offset> _fieldsSlide;
   late final Animation<Offset> _buttonSlide;
+
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -41,15 +49,23 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   void dispose() {
     _controller.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  Widget _buildAnimatedTextField({required String hint, required IconData icon, bool obscure = false}) {
+  Widget _buildAnimatedTextField({
+    required String hint,
+    required IconData icon,
+    bool obscure = false,
+    TextEditingController? controller,
+  }) {
     return SlideTransition(
       position: _fieldsSlide,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: TextField(
+          controller: controller,
           obscureText: obscure,
           decoration: InputDecoration(
             hintText: hint,
@@ -67,10 +83,51 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
+  Future<void> _loginUser() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final url = Uri.parse('http://127.0.0.1:8000/auth/jwt/create/');
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "email": _emailController.text,
+          "password": _passwordController.text,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('access', data['access']);
+        await prefs.setString('refresh', data['refresh']);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Login амжилттай')),
+        );
+
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        final data = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Алдаа: ${data.toString()}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Алдаа: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
+      backgroundColor: const Color(0xFFFFFFFF),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
@@ -84,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   borderRadius: BorderRadius.circular(20),
                   child: Image.asset(
                     'assets/images/linguini.jpg',
-                    height: 220,
+                    height: 250,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -93,7 +150,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               SlideTransition(
                 position: _titleSlide,
                 child: const Text(
-                  'Ratatouille',
+                  'Ratatouille Login',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
@@ -103,8 +160,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 ),
               ),
               const SizedBox(height: 30),
-              _buildAnimatedTextField(hint: 'И-майл', icon: Icons.email_outlined),
-              _buildAnimatedTextField(hint: 'Нууц үг', icon: Icons.lock_outline, obscure: true),
+              _buildAnimatedTextField(hint: 'И-майл', icon: Icons.email_outlined, controller: _emailController),
+              _buildAnimatedTextField(hint: 'Нууц үг', icon: Icons.lock_outline, obscure: true, controller: _passwordController),
               const SizedBox(height: 24),
               SlideTransition(
                 position: _buttonSlide,
@@ -119,13 +176,17 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       ),
                       elevation: 5,
                     ),
-                    onPressed: () {
-                      Navigator.pushReplacementNamed(context, '/home');
-                    },
-                    child: const Text(
-                      'Sign In',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
+                    onPressed: _isLoading ? null : _loginUser,
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Login',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -137,9 +198,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     Navigator.pushReplacementNamed(context, '/register');
                   },
                   child: const Text(
-                    "Don't have an account? Sign up",
+                    'Бүртгүүлэх',
                     style: TextStyle(
-                      color: Color(0xFF4C1D95),
+                      color: Color(0xFF6D28D9),
                       fontWeight: FontWeight.w500,
                     ),
                   ),

@@ -21,6 +21,7 @@ from rest_framework import routers
 from django.conf import settings
 from django.conf.urls.static import static
 
+
 router = routers.DefaultRouter()
 router.register(r'recipes', RecipeViewSet)
 router.register(r'categories', CategoryViewSet)
@@ -34,6 +35,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/',include(router.urls)),
     path('api/search_recipes/', search_recipes),
+    path("auth/", include("djoser.urls")),
+    path("auth/", include("djoser.urls.jwt")),
+    path('user/info/', user_info),
+
 ]
 
 if settings.DEBUG:

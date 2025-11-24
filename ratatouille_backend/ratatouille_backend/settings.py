@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
-
+from datetime import timedelta
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -41,7 +41,34 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'jor_app',
+    'rest_framework.authtoken',
+    'djoser',
+    'rest_framework_simplejwt.token_blacklist',
 ]
+
+AUTH_USER_MODEL = "jor_app.User"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+}
+
+
+DJOSER = {
+    "LOGIN_FIELD": "email",
+    "USER_ID_FIELD": "id",
+    "SERIALIZERS": {
+        "user_create": "jor_app.serializer.UserCreateSerializer",
+        "current_user": "jor_app.serializer.UserSerializer",
+    },
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+}
+
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware', 

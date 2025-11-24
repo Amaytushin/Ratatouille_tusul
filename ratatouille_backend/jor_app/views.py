@@ -3,11 +3,21 @@ from django.shortcuts import render
 from .serializer import *
 from .models import Recipe, Ingredient
 from rest_framework import viewsets
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 
 # Create your views here.
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_info(request):
+    user = request.user
+    return Response({
+        "email": user.email,
+        "username": user.username,
+        "avatar": request.build_absolute_uri(user.avatar.url) if user.avatar else None
+    })
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all().order_by('-created_at')

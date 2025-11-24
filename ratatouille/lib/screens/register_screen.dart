@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,6 +15,10 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   late final Animation<Offset> _titleSlide;
   late final Animation<Offset> _fieldsSlide;
   late final Animation<Offset> _buttonSlide;
+
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   void initState() {
@@ -41,15 +47,24 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
   @override
   void dispose() {
     _controller.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  Widget _buildAnimatedTextField({required String hint, required IconData icon, bool obscure = false}) {
+  Widget _buildAnimatedTextField({
+    required String hint,
+    required IconData icon,
+    bool obscure = false,
+    TextEditingController? controller,
+  }) {
     return SlideTransition(
       position: _fieldsSlide,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: TextField(
+          controller: controller,
           obscureText: obscure,
           decoration: InputDecoration(
             hintText: hint,
@@ -65,6 +80,32 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         ),
       ),
     );
+  }
+
+  Future<void> _registerUser() async {
+    final url = Uri.parse('http://127.0.0.1:8000/auth/users/');
+
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "username": _nameController.text,
+        "email": _emailController.text,
+        "password": _passwordController.text,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Амжилттай бүртгэгдлээ')),
+      );
+      Navigator.pushReplacementNamed(context, '/login');
+    } else {
+      final data = jsonDecode(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Алдаа: ${data.toString()}')),
+      );
+    }
   }
 
   @override
@@ -103,9 +144,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                 ),
               ),
               const SizedBox(height: 30),
-              _buildAnimatedTextField(hint: 'Нэр', icon: Icons.person_outline),
-              _buildAnimatedTextField(hint: 'И-майл', icon: Icons.email_outlined),
-              _buildAnimatedTextField(hint: 'Нууц үг', icon: Icons.lock_outline, obscure: true),
+              _buildAnimatedTextField(hint: 'Нэр', icon: Icons.person_outline, controller: _nameController),
+              _buildAnimatedTextField(hint: 'И-майл', icon: Icons.email_outlined, controller: _emailController),
+              _buildAnimatedTextField(hint: 'Нууц үг', icon: Icons.lock_outline, obscure: true, controller: _passwordController),
               const SizedBox(height: 24),
               SlideTransition(
                 position: _buttonSlide,
@@ -120,11 +161,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
                       ),
                       elevation: 5,
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Register button pressed')),
-                      );
-                    },
+                    onPressed: _registerUser,
                     child: const Text(
                       'Register',
                       style: TextStyle(
@@ -140,14 +177,14 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
               SlideTransition(
                 position: _buttonSlide,
                 child: TextButton(
-                    onPressed: () {
+                  onPressed: () {
                     Navigator.pushReplacementNamed(context, '/login');
-                    },
-                    child: const Text(
+                  },
+                  child: const Text(
                     'Already have an account? Login',
                     style: TextStyle(
-                        color: Color(0xFF6D28D9),
-                        fontWeight: FontWeight.w500,
+                      color: Color(0xFF6D28D9),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),

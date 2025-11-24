@@ -286,16 +286,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(height: 12),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Ratatouille',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF4C1D95),
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Ratatouille',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4C1D95),
+                      ),
+                    ),
+
+                    // 🔹 Profile Icon
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Color(0xFF7C3AED),
+                      child: Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
+
           const SizedBox(height: 20),
 
           // 🔹 Featured recipe
