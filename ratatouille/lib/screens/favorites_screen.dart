@@ -1,19 +1,30 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'RecipeDetailScreen.dart';
 
 class FavoritesScreen extends StatefulWidget {
   final List<Map<String, dynamic>> favorites;
+  final Future<void> Function(int wishlistId) onRemove;
 
-  const FavoritesScreen({super.key, required this.favorites});
+  const FavoritesScreen({
+    super.key,
+    required this.favorites,
+    required this.onRemove,
+  });
 
   @override
   State<FavoritesScreen> createState() => _FavoritesScreenState();
 }
 
+
 class _FavoritesScreenState extends State<FavoritesScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnim;
+
+  List<Map<String, dynamic>> favorites = [];
+  bool isLoading = true;
 
   @override
   void initState() {
@@ -24,6 +35,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     );
     _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
     _controller.forward();
+
+    _fetchFavorites(); // API-аас татах
   }
 
   @override
@@ -32,20 +45,62 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     super.dispose();
   }
 
+  Future<void> _fetchFavorites() async {
+    final url = Uri.parse('http://127.0.0.1:8000/api/wishlist/');
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        print("ssssssssssssssssssssss");
+        final List data = json.decode(response.body);
+        setState(() {
+          favorites = data.map((e) => e as Map<String, dynamic>).toList();
+          isLoading = false;
+        });
+      } else {
+        setState(() => isLoading = false);
+        debugPrint("Failed to fetch favorites: ${response.statusCode}");
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      debugPrint("Error fetching favorites: $e");
+    }
+  }
+
+  Future<void> _removeFavorite(int wishlistId) async {
+    final url = Uri.parse('http://127.0.0.1:8000/api/wishlist/$wishlistId/');
+    
+    try {
+      final response = await http.delete(url);
+      if (response.statusCode == 204) {
+        setState(() {
+          favorites.removeWhere((item) => item["id"] == wishlistId);
+        });
+      } else {
+        debugPrint("Failed to remove favorite: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Error removing favorite: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+  print("favorites $favorites");
+
     return FadeTransition(
       opacity: _fadeAnim,
-      child: widget.favorites.isEmpty
-          ? _emptyState()
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: widget.favorites.length,
-              itemBuilder: (context, index) {
-                final recipe = widget.favorites[index];
-                return _favoriteItem(recipe, index);
-              },
-            ),
+      child: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : favorites.isEmpty
+              ? _emptyState()
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: favorites.length,
+                  itemBuilder: (context, index) {
+                    final recipe = favorites[index];
+                    return _favoriteItem(recipe);
+                  },
+                ),
     );
   }
 
@@ -54,10 +109,11 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.favorite_border, size: 90, color: Colors.grey.shade400),
+          Icon(Icons.favorite_border,
+              size: 90, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           const Text(
-            "Танд хадгалсан жор алга байна",
+            "Танд хадгалсан жор алга байна--",
             style: TextStyle(fontSize: 18, color: Colors.grey),
           ),
         ],
@@ -65,12 +121,13 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     );
   }
 
-  Widget _favoriteItem(Map<String, dynamic> recipe, int index) {
+  Widget _favoriteItem(Map<String, dynamic> recipe) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe)),
+          MaterialPageRoute(
+              builder: (_) => RecipeDetailScreen(recipe: recipe)),
         );
       },
       child: Container(
@@ -113,7 +170,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -130,11 +188,16 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.timer, size: 16, color: Colors.grey.shade600),
+                        Icon(Icons.timer,
+                            size: 16,
+                            color: Colors.grey.shade600),
                         const SizedBox(width: 4),
                         Text(
                           recipe['time'] ?? "—",
-                          style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade700,
+                          ),
                         ),
                       ],
                     )
@@ -144,10 +207,9 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             ),
             IconButton(
               icon: const Icon(Icons.favorite, color: Colors.red),
-              onPressed: () {
-                setState(() {
-                  widget.favorites.removeAt(index);
-                });
+              onPressed: () async {
+                final wishlistId = recipe["id"];
+                await _removeFavorite(wishlistId);
               },
             ),
           ],

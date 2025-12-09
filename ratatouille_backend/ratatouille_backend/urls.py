@@ -29,6 +29,7 @@ router.register(r'users', UserViewSet)
 router.register(r'ingredients', IngredientViewSet)
 # router.register(r'steps', CookingStepViewSet)
 router.register(r'nutritions', NutritionViewSet)
+router.register(r'wishlist', WishlistViewSet)
 
 
 urlpatterns = [

@@ -7,10 +7,11 @@ class RecipeDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+     print("🍏 NUTRITION DATA ===> ${recipe['nutrition']}");
     // Backend-аас ирсэн list/map-г default гаргах
     List<dynamic> ingredients = recipe['ingredients'] ?? [];
     List<dynamic> steps = recipe['steps'] ?? [];
-    Map<String, dynamic> nutrition = recipe['nutritions'] ?? {};
+    Map<String, dynamic> nutrition = recipe['nutrition'] ?? {};
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -97,7 +98,7 @@ class RecipeDetailScreen extends StatelessWidget {
 
                 // 🍅 Ingredients Section
                 _sectionTitle("🧂 Орц"),
-                _ingredientsList(ingredients.map<String>((e) => e.toString()).toList()),
+                _ingredientsList(ingredients.map<String>((e) => e['name'].toString()).toList()),
 
                 const SizedBox(height: 24),
 
@@ -109,6 +110,7 @@ class RecipeDetailScreen extends StatelessWidget {
                 "Өөх тос": nutrition['fat'] ?? 'N/A',
                 "Нүүрс ус": nutrition['carbs'] ?? 'N/A',
               }),
+              
                 const SizedBox(height: 24),
 
                 // 🍳 Cooking Steps Section

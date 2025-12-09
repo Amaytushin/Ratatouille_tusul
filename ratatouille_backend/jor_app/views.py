@@ -1,5 +1,6 @@
 
 from django.shortcuts import render
+from rest_framework import viewsets, status
 from .serializer import *
 from .models import Recipe, Ingredient
 from rest_framework import viewsets
@@ -63,6 +64,50 @@ class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
 
+class WishlistViewSet(viewsets.ModelViewSet):
+    queryset = Wishlist.objects.all()
+    serializer_class = WishlistSerializer
+    permission_classes = [IsAuthenticated]
+
+    # 🔥 1. GET /wishlist/my/  — Login хэрэглэгчийн wishlist авах
+    @action(detail=False, methods=['get'])
+    def my(self, request):
+        wish = Wishlist.objects.filter(user=request.user)
+        serializer = WishlistSerializer(wish, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    # 🔥 2. POST /wishlist/add/ — Жор wishlist-д нэмэх
+    @action(detail=False, methods=['post'])
+    def add(self, request):
+        recipe_id = request.data.get("recipe_id")
+
+        if not recipe_id:
+            return Response({"error": "recipe_id is required"}, status=400)
+
+        # Давхардал шалгах
+        exists = Wishlist.objects.filter(user=request.user, recipe_id=recipe_id).exists()
+        if exists:
+            return Response({"message": "Already added to wishlist"})
+
+        # Шинэ wishlist item үүсгэх
+        wishlist = Wishlist.objects.create(
+            user=request.user,
+            recipe_id=recipe_id
+        )
+
+        serializer = WishlistSerializer(wishlist, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    # 🔥 3. DELETE /wishlist/remove/<pk>/ — Устгах
+    @action(detail=True, methods=['delete'])
+    def remove(self, request, pk=None):
+        try:
+            item = Wishlist.objects.get(id=pk, user=request.user)
+        except Wishlist.DoesNotExist:
+            return Response({"error": "Not found"}, status=404)
+
+        item.delete()
+        return Response({"message": "Removed"}, status=204)
 
 class NutritionViewSet(viewsets.ModelViewSet):
     queryset = Nutrition.objects.all()

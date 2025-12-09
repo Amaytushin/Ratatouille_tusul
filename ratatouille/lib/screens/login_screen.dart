@@ -25,21 +25,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
 
     _imageSlide = Tween<Offset>(begin: const Offset(0, -1), end: Offset.zero)
         .animate(CurvedAnimation(parent: _controller, curve: const Interval(0, 0.3, curve: Curves.easeOut)));
-
     _titleSlide = Tween<Offset>(begin: const Offset(0, -0.5), end: Offset.zero)
         .animate(CurvedAnimation(parent: _controller, curve: const Interval(0.2, 0.5, curve: Curves.easeOut)));
-
     _fieldsSlide = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
         .animate(CurvedAnimation(parent: _controller, curve: const Interval(0.4, 0.7, curve: Curves.easeOut)));
-
     _buttonSlide = Tween<Offset>(begin: const Offset(0, 2), end: Offset.zero)
         .animate(CurvedAnimation(parent: _controller, curve: const Interval(0.6, 1, curve: Curves.easeOut)));
 
@@ -54,12 +47,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     super.dispose();
   }
 
-  Widget _buildAnimatedTextField({
-    required String hint,
-    required IconData icon,
-    bool obscure = false,
-    TextEditingController? controller,
-  }) {
+  Widget _buildAnimatedTextField({required String hint, required IconData icon, bool obscure = false, TextEditingController? controller}) {
     return SlideTransition(
       position: _fieldsSlide,
       child: Padding(
@@ -73,10 +61,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             filled: true,
             fillColor: Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
           ),
         ),
       ),
@@ -104,21 +89,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         await prefs.setString('access', data['access']);
         await prefs.setString('refresh', data['refresh']);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login амжилттай')),
-        );
-
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         final data = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Алдаа: ${data.toString()}')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Алдаа: ${data.toString()}')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Алдаа: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Алдаа: $e')));
     } finally {
       setState(() => _isLoading = false);
     }
@@ -127,37 +104,24 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
               SlideTransition(
                 position: _imageSlide,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: Image.asset(
-                    'assets/images/linguini.jpg',
-                    height: 250,
-                    fit: BoxFit.cover,
-                  ),
+                  child: Image.asset('assets/images/linguini.jpg', height: 250, fit: BoxFit.cover),
                 ),
               ),
               const SizedBox(height: 20),
               SlideTransition(
                 position: _titleSlide,
-                child: const Text(
-                  'Ratatouille Login',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF4C1D95),
-                    letterSpacing: 1.2,
-                  ),
-                ),
+                child: const Text('Ratatouille Login', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Color(0xFF4C1D95), letterSpacing: 1.2)),
               ),
               const SizedBox(height: 30),
               _buildAnimatedTextField(hint: 'И-майл', icon: Icons.email_outlined, controller: _emailController),
@@ -169,24 +133,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6D28D9),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 5,
-                    ),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6D28D9), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 5),
                     onPressed: _isLoading ? null : _loginUser,
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                    child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
                   ),
                 ),
               ),
@@ -194,16 +143,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               SlideTransition(
                 position: _buttonSlide,
                 child: TextButton(
-                  onPressed: () {
-                    Navigator.pushReplacementNamed(context, '/register');
-                  },
-                  child: const Text(
-                    'Бүртгүүлэх',
-                    style: TextStyle(
-                      color: Color(0xFF6D28D9),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  onPressed: () { Navigator.pushReplacementNamed(context, '/register'); },
+                  child: const Text('Бүртгүүлэх', style: TextStyle(color: Color(0xFF6D28D9), fontWeight: FontWeight.w500)),
                 ),
               ),
             ],

@@ -28,7 +28,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 
-    USERNAME_FIELD = 'email'
+    USERNAME_FIELD = 'email'    
     REQUIRED_FIELDS = ['username']
 
     objects = UserManager()
@@ -91,3 +91,7 @@ class Nutrition(models.Model):
 
     def __str__(self):
         return f"{self.recipe.name} Nutrition"
+
+class Wishlist(models.Model):
+    user = models.ForeignKey(User, on_delete = models.CASCADE, related_name="wishlistUser")
+    recipe = models.ForeignKey(Recipe, on_delete= models.CASCADE, related_name="wishlistRecipe")
