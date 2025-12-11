@@ -29,7 +29,7 @@ router.register(r'users', UserViewSet)
 router.register(r'ingredients', IngredientViewSet)
 # router.register(r'steps', CookingStepViewSet)
 router.register(r'nutritions', NutritionViewSet)
-router.register(r'wishlist', WishlistViewSet)
+# router.register(r'wishlist', WishlistViewSet)
 
 
 urlpatterns = [
@@ -38,7 +38,10 @@ urlpatterns = [
     path('api/search_recipes/', search_recipes),
     path("auth/", include("djoser.urls")),
     path("auth/", include("djoser.urls.jwt")),
-    path('user/info/', user_info),
+    path('wishlist/my/',my_wishlist),
+    path('wishlist/add/', add_wishlist),
+    path('wishlist/remove/<int:pk>/', remove_wishlist),
+
 
 ]
 

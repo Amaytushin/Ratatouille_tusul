@@ -1,25 +1,13 @@
-
 from django.shortcuts import render
 from rest_framework import viewsets, status
 from .serializer import *
-from .models import Recipe, Ingredient
-from rest_framework import viewsets
-from rest_framework.decorators import api_view, permission_classes
+from .models import Recipe, Ingredient, Wishlist, User, Nutrition, Category
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated, AllowAny
 
-# Create your views here.
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def user_info(request):
-    user = request.user
-    return Response({
-        "email": user.email,
-        "username": user.username,
-        "avatar": request.build_absolute_uri(user.avatar.url) if user.avatar else None
-    })
-
+# 🔹 Recipe ViewSet
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all().order_by('-created_at')
     serializer_class = RecipeSerializer
@@ -34,17 +22,18 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(recipes, many=True)
         return Response(serializer.data)
 
+# 🔹 Category ViewSet
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
+# 🔹 Search Recipes API
 @api_view(['POST'])
 def search_recipes(request):
     """
     Хэрэглэгчийн орцуудыг авч тухайн орцуудыг агуулсан recipe-г буцаах
     """
     selected_ingredients = request.data.get('ingredients', [])
-    
     if not selected_ingredients:
         return Response({"recipes": []})
 
@@ -52,71 +41,125 @@ def search_recipes(request):
         ingredients__name__in=selected_ingredients
     ).distinct()
 
-    # 🔥 Энд request дамжуулна
     serializer = RecipeSerializer(recipes, many=True, context={'request': request})
     return Response(serializer.data)
 
+# 🔹 User ViewSet
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
-    serializer_class = UserSerializer
+    parser_classes = (MultiPartParser, FormParser)
 
+    def get_permissions(self):
+        if self.action == "create":
+            return [AllowAny()]           # register → нээлттэй
+        if self.action in ["me", "me_update"]:
+            return [IsAuthenticated()]    # зөвхөн login хэрэглэгч
+        return [IsAuthenticated()]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return UserCreateSerializer
+        if self.action in ["me_update", "update", "partial_update"]:
+            return UserUpdateSerializer
+        return UserSerializer
+
+    # GET /users/me/
+    @action(detail=False, methods=["get"])
+    def me(self, request):
+        serializer = UserSerializer(request.user, context={"request": request})
+        return Response(serializer.data)
+
+    # PATCH /users/me_update/
+    @action(detail=False, methods=["patch", "put"])
+    def me_update(self, request):
+        serializer = UserUpdateSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserSerializer(request.user, context={"request": request}).data)
+
+# 🔹 Ingredient ViewSet
 class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
 
-class WishlistViewSet(viewsets.ModelViewSet):
-    queryset = Wishlist.objects.all()
-    serializer_class = WishlistSerializer
-    permission_classes = [IsAuthenticated]
+# 🔹 Wishlist ViewSet
+# class WishlistViewSet(viewsets.ModelViewSet):
+#     queryset = Wishlist.objects.all()
+#     serializer_class = WishlistSerializer
+#     permission_classes = [IsAuthenticated]
 
-    # 🔥 1. GET /wishlist/my/  — Login хэрэглэгчийн wishlist авах
-    @action(detail=False, methods=['get'])
-    def my(self, request):
-        wish = Wishlist.objects.filter(user=request.user)
-        serializer = WishlistSerializer(wish, many=True, context={'request': request})
-        return Response(serializer.data)
+#     # GET /wishlist/my/  — Login хэрэглэгчийн wishlist авах
+#     @action(detail=False, methods=['get'])
+#     def my(self, request):
+#         wish = Wishlist.objects.filter(user=request.user)
+#         serializer = WishlistSerializer(wish, many=True, context={'request': request})
+#         return Response(serializer.data)
 
-    # 🔥 2. POST /wishlist/add/ — Жор wishlist-д нэмэх
-    @action(detail=False, methods=['post'])
-    def add(self, request):
-        recipe_id = request.data.get("recipe_id")
+#     # POST /wishlist/add/
+# @action(detail=False, methods=['post'])
+# def add(self, request):
+#     recipe_id = request.data.get("recipe_id")
+#     if not recipe_id:
+#         return Response({"error": "recipe_id is required"}, status=400)
 
-        if not recipe_id:
-            return Response({"error": "recipe_id is required"}, status=400)
+#     exists = Wishlist.objects.filter(user=request.user, recipe_id=recipe_id).exists()
+#     if exists:
+#         return Response({"message": "Already added to wishlist"}, status=200)
 
-        # Давхардал шалгах
-        exists = Wishlist.objects.filter(user=request.user, recipe_id=recipe_id).exists()
-        if exists:
-            return Response({"message": "Already added to wishlist"})
+#     wishlist = Wishlist.objects.create(user=request.user, recipe_id=recipe_id)
+#     serializer = WishlistSerializer(wishlist, context={'request': request})
+#     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        # Шинэ wishlist item үүсгэх
-        wishlist = Wishlist.objects.create(
-            user=request.user,
-            recipe_id=recipe_id
-        )
+# # DELETE /wishlist/remove/<pk>/
+# @action(detail=True, methods=['delete'])
+# def remove(self, request, pk=None):
+#     try:
+#         item = Wishlist.objects.get(id=pk, user=request.user)
+#     except Wishlist.DoesNotExist:
+#         return Response({"error": "Not found"}, status=404)
 
-        serializer = WishlistSerializer(wishlist, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+#     item.delete()
+#     return Response({"message": "Removed"}, status=204)
 
-    # 🔥 3. DELETE /wishlist/remove/<pk>/ — Устгах
-    @action(detail=True, methods=['delete'])
-    def remove(self, request, pk=None):
-        try:
-            item = Wishlist.objects.get(id=pk, user=request.user)
-        except Wishlist.DoesNotExist:
-            return Response({"error": "Not found"}, status=404)
 
-        item.delete()
-        return Response({"message": "Removed"}, status=204)
-
+# 🔹 Nutrition ViewSet
 class NutritionViewSet(viewsets.ModelViewSet):
     queryset = Nutrition.objects.all()
     serializer_class = NutritionSerializer
-    # class RecipeViewSet(viewsets.ModelViewSet):
-#     queryset = Recipe.objects.all()
-#     serializer_class = RecipeSerializer
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_wishlist(request):
+    user = request.user
+    wishlist = Wishlist.objects.filter(user=user)
+    serializer = WishlistSerializer(wishlist, many=True)
+    return Response(serializer.data)
 
-# class CookingStepViewSet(viewsets.ModelViewSet):
-#     queryset = CookingStep.objects.all()
-#     serializer_class = CookingStepSerializer
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_wishlist(request):
+    user = request.user
+    recipe_id = request.data.get("recipe_id")
+    if not recipe_id:
+        return Response({"error": "recipe_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    recipe = Recipe.objects.get(id=recipe_id)
+    wishlist_item, created = Wishlist.objects.get_or_create(user=user, recipe=recipe)
+    serializer = WishlistSerializer(wishlist_item)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def remove_wishlist(request, pk):
+    user = request.user
+    try:
+        wishlist_item = Wishlist.objects.get(id=pk, user=user)
+        wishlist_item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    except Wishlist.DoesNotExist:
+        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)

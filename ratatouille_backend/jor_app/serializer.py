@@ -14,19 +14,20 @@ class NutritionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Nutrition
         fields = ['id', 'calories', 'protein', 'fat', 'carbs']
-
+        
 class UserSerializer(serializers.ModelSerializer):
     avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'username', 'avatar', 'created_at']
+        fields = ["id", "email", "username", "avatar", "created_at"]
 
     def get_avatar(self, obj):
-        request = self.context.get('request')
+        request = self.context.get("request")
         if obj.avatar and request:
             return request.build_absolute_uri(obj.avatar.url)
         return None
+
 
 class RecipeSerializer(serializers.ModelSerializer):
     ingredients = IngredientSerializer(many=True, read_only=True)
@@ -55,6 +56,7 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    avatar = serializers.ImageField(required=False)
 
     class Meta:
         model = User
@@ -62,10 +64,49 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password")
-        user = User(**validated_data)
-        user.set_password(password)
-        user.save()
+        avatar = validated_data.pop("avatar", None)
+
+        user = User.objects.create_user(
+            email=validated_data["email"],
+            username=validated_data["username"],
+            password=password,
+        )
+
+        if avatar:
+            user.avatar = avatar
+            user.save()
+
         return user
+    
+class UserUpdateSerializer(serializers.ModelSerializer):
+    avatar = serializers.ImageField(required=False)
+    remove_avatar = serializers.BooleanField(write_only=True, required=False, default=False)
+
+    class Meta:
+        model = User
+        fields = ("email", "username", "avatar", "remove_avatar")
+
+    def update(self, instance, validated_data):
+        # avatar устгах
+        if validated_data.pop("remove_avatar", False):
+            if instance.avatar:
+                instance.avatar.delete(save=False)
+            instance.avatar = None
+
+        # avatar солих
+        new_avatar = validated_data.pop("avatar", None)
+        if new_avatar:
+            if instance.avatar:
+                instance.avatar.delete(save=False)
+            instance.avatar = new_avatar
+
+        # бусад талбар
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
+   
 
 
 class WishlistSerializer(serializers.ModelSerializer):

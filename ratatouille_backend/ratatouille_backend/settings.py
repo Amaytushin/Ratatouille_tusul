@@ -38,12 +38,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
     'corsheaders',
     'jor_app',
-    'rest_framework.authtoken',
+    'rest_framework',
     'djoser',
-    'rest_framework_simplejwt.token_blacklist',
+    'rest_framework_simplejwt',
 ]
 
 AUTH_USER_MODEL = "jor_app.User"
@@ -52,21 +51,24 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.AllowAny",
+    ),
 }
 
 
 DJOSER = {
     "LOGIN_FIELD": "email",
-    "USER_ID_FIELD": "id",
     "SERIALIZERS": {
         "user_create": "jor_app.serializer.UserCreateSerializer",
         "current_user": "jor_app.serializer.UserSerializer",
     },
 }
-
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=7),       # Access token → 7 хоног
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),     # Refresh token → 30 хоног
+    "ROTATE_REFRESH_TOKENS": True,                    # Refresh хийхэд шинэ token үүсгэнэ
+    "BLACKLIST_AFTER_ROTATION": True,                 # Хуучин refresh token-ыг blacklist-дэнэ
 }
 
 
@@ -113,7 +115,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'ratatouille_db',   # Таны PostgreSQL-д үүсгэсэн датабэйс
         'USER': 'postgres',         # PostgreSQL хэрэглэгчийн нэр
-        'PASSWORD': '1000',         # Түүний нууц үг
+        'PASSWORD': '12345678',         # Түүний нууц үг
         'HOST': 'localhost',        # Серверийн хаяг (дотоод сүлжээнд бол localhost)
         'PORT': '5432',             # PostgreSQL-ийн default порт
     }

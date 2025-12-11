@@ -1,6 +1,6 @@
 name: ratatouille
 description: "A new Flutter project."
-publish_to: 'none' # Private package
+publish_to: "none" # Private package
 
 version: 1.0.0+1
 
@@ -13,7 +13,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.1.0
   flutter_secure_storage: ^9.2.4
-  shared_preferences: ^2.1.0 
+  shared_preferences: ^2.1.0
+  image_picker: ^1.1.1
 
 dev_dependencies:
   flutter_test:

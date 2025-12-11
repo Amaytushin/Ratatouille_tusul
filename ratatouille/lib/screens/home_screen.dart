@@ -14,14 +14,15 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   List<String> categories = [];
   int selectedCategoryIndex = 0;
   int selectedBottomIndex = 0;
 
   List<Map<String, dynamic>> recipes = [];
   List<Map<String, dynamic>> favorites = [];
+
+  bool isLoadingRecipes = false;
 
   late final AnimationController _controller;
   late final SearchScreen _searchScreen;
@@ -33,7 +34,6 @@ class _HomeScreenState extends State<HomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
-
     _controller.forward();
 
     _loadCategories();
@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString("token");
+    return prefs.getString('jwt_token');
   }
 
   Future<void> _loadCategories() async {
@@ -59,12 +59,12 @@ class _HomeScreenState extends State<HomeScreen>
       final response = await http.get(
         Uri.parse('http://127.0.0.1:8000/api/categories/'),
       );
-
       if (response.statusCode == 200) {
         List data = json.decode(response.body);
-
         setState(() {
-          categories = data.map<String>((cat) => cat['name'] as String).toList();
+          categories = data
+              .map<String>((cat) => cat['name'] as String)
+              .toList();
         });
       }
     } catch (e) {
@@ -73,33 +73,33 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadRecipes({String? category}) async {
+    setState(() => isLoadingRecipes = true);
     try {
       String url = 'http://127.0.0.1:8000/api/recipes/';
-
-      if (category != null) {
-        url += 'by_category/?category=$category';
-      }
-
+      if (category != null) url += 'by_category/?category=$category';
       final response = await http.get(Uri.parse(url));
-
       if (response.statusCode == 200) {
         List data = json.decode(response.body);
-
         setState(() {
-          recipes = data.map<Map<String, dynamic>>((r) => {
-                'id': r['id'],
-                'name': r['name'],
-                'time': r['time_required'],
-                'servings': r['servings'].toString(),
-                'cuisine': r['cuisine'],
-                'image': r['image'],
-                'nutrition': r['nutrition'],
-              }).toList();
+          recipes = data
+              .map<Map<String, dynamic>>(
+                (r) => {
+                  'id': r['id'],
+                  'name': r['name'],
+                  'time': r['time_required'].toString(),
+                  'servings': r['servings'].toString(),
+                  'cuisine': r['cuisine'],
+                  'image': r['image'],
+                  'nutrition': r['nutrition'],
+                },
+              )
+              .toList();
         });
       }
     } catch (e) {
       debugPrint('Recipe Error: $e');
     }
+    setState(() => isLoadingRecipes = false);
   }
 
   Future<void> _loadWishlist() async {
@@ -108,24 +108,27 @@ class _HomeScreenState extends State<HomeScreen>
 
     final response = await http.get(
       Uri.parse("http://127.0.0.1:8000/api/wishlist/my/"),
-      headers: {"Authorization": "Token $token"},
+      headers: {"Authorization": "Bearer $token"},
     );
 
     if (response.statusCode == 200) {
       List data = json.decode(response.body);
-
       setState(() {
-        favorites = data.map<Map<String, dynamic>>((item) {
-          return {
-            "wishlist_id": item["id"],
-            "id": item["recipe"]["id"],
-            "name": item["recipe"]["name"],
-            "image": item["recipe"]["image"],
-            "time": item["recipe"]["time_required"].toString(),
-            "nutrition": item["recipe"]["nutrition"]
-          };
-        }).toList();
+        favorites = data
+            .map(
+              (item) => {
+                "wishlist_id": item["id"],
+                "id": item["recipe"]["id"],
+                "name": item["recipe"]["name"],
+                "image": item["recipe"]["image"],
+                "time": item["recipe"]["time_required"].toString(),
+              },
+            )
+            .toList();
       });
+    } else {
+      debugPrint("Failed to load wishlist: ${response.statusCode}");
+      setState(() => favorites = []);
     }
   }
 
@@ -137,33 +140,42 @@ class _HomeScreenState extends State<HomeScreen>
       Uri.parse("http://127.0.0.1:8000/api/wishlist/add/"),
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Token $token"
+        "Authorization": "Bearer $token",
       },
       body: json.encode({"recipe_id": recipeId}),
     );
 
-    await _loadWishlist();
+    if (response.statusCode == 201) {
+      await _loadWishlist();
+    } else {
+      debugPrint("Failed to add to wishlist: ${response.statusCode}");
+    }
   }
 
   Future<void> _removeFromWishlist(int wishlistId) async {
     final token = await _getToken();
     if (token == null) return;
 
-    await http.delete(
+    final response = await http.delete(
       Uri.parse("http://127.0.0.1:8000/api/wishlist/remove/$wishlistId/"),
-      headers: {"Authorization": "Token $token"},
+      headers: {"Authorization": "Bearer $token"},
     );
 
-    await _loadWishlist();
+    if (response.statusCode == 204) {
+      await _loadWishlist();
+    } else {
+      debugPrint("Failed to remove from wishlist: ${response.statusCode}");
+    }
   }
 
-  bool _isFavorite(int recipeId) {
-    return favorites.any((item) => item["id"] == recipeId);
-  }
+  bool _isFavorite(int recipeId) =>
+      favorites.any((item) => item["id"] == recipeId);
 
   int? _getWishlistId(int recipeId) {
-    final item =
-        favorites.firstWhere((fav) => fav["id"] == recipeId, orElse: () => {});
+    final item = favorites.firstWhere(
+      (fav) => fav["id"] == recipeId,
+      orElse: () => {},
+    );
     return item["wishlist_id"];
   }
 
@@ -199,7 +211,11 @@ class _HomeScreenState extends State<HomeScreen>
                 radius: 26,
                 backgroundColor: Colors.white,
                 child: IconButton(
-                  icon: const Icon(Icons.person, color: Color(0xFF7C3AED), size: 28),
+                  icon: const Icon(
+                    Icons.person,
+                    color: Color(0xFF7C3AED),
+                    size: 28,
+                  ),
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -209,8 +225,7 @@ class _HomeScreenState extends State<HomeScreen>
                     );
                   },
                 ),
-              )
-
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -229,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen>
                 icon: Icon(Icons.search, color: Colors.white),
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -244,7 +259,8 @@ class _HomeScreenState extends State<HomeScreen>
         Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => RecipeDetailScreen(recipe: recipe)),
+            builder: (context) => RecipeDetailScreen(recipe: recipe),
+          ),
         );
       },
       child: Container(
@@ -256,14 +272,15 @@ class _HomeScreenState extends State<HomeScreen>
               color: Colors.black.withOpacity(0.08),
               blurRadius: 8,
               offset: const Offset(0, 4),
-            )
+            ),
           ],
         ),
         child: Column(
           children: [
             ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
               child: Image.network(
                 recipe['image'],
                 height: 120,
@@ -281,7 +298,9 @@ class _HomeScreenState extends State<HomeScreen>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -289,18 +308,20 @@ class _HomeScreenState extends State<HomeScreen>
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.timer,
-                              size: 16, color: Colors.deepPurple),
+                          const Icon(
+                            Icons.timer,
+                            size: 16,
+                            color: Colors.deepPurple,
+                          ),
                           const SizedBox(width: 4),
                           Text('${recipe['time']} min'),
                         ],
                       ),
                       IconButton(
                         icon: Icon(
-                            isFavorite
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: Colors.red),
+                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: Colors.red,
+                        ),
                         onPressed: () async {
                           if (isFavorite) {
                             await _removeFromWishlist(wishlistId!);
@@ -310,10 +331,10 @@ class _HomeScreenState extends State<HomeScreen>
                         },
                       ),
                     ],
-                  )
+                  ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -327,8 +348,6 @@ class _HomeScreenState extends State<HomeScreen>
         children: [
           _modernHeader(),
           const SizedBox(height: 20),
-
-          // Categories
           SizedBox(
             height: 50,
             child: ListView.builder(
@@ -337,26 +356,25 @@ class _HomeScreenState extends State<HomeScreen>
               itemCount: categories.length,
               itemBuilder: (context, index) {
                 final isSelected = index == selectedCategoryIndex;
-
                 return Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: GestureDetector(
                     onTap: () {
-                      setState(() {
-                        selectedCategoryIndex = index;
-                      });
+                      setState(() => selectedCategoryIndex = index);
                       _loadRecipes(category: categories[index]);
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
-                        color:
-                            isSelected ? const Color(0xFF7C3AED) : Colors.white,
+                        color: isSelected
+                            ? const Color(0xFF7C3AED)
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(30),
-                        border:
-                            Border.all(color: const Color(0xFF7C3AED)),
+                        border: Border.all(color: const Color(0xFF7C3AED)),
                       ),
                       child: Text(
                         categories[index],
@@ -373,29 +391,31 @@ class _HomeScreenState extends State<HomeScreen>
               },
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // Recipes Grid
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: recipes.length,
-              gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.72,
-              ),
-              itemBuilder: (context, index) {
-                return _recipeCard(recipes[index]);
-              },
-            ),
+            child: isLoadingRecipes
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: recipes.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 0.72,
+                        ),
+                    itemBuilder: (context, index) =>
+                        _recipeCard(recipes[index]),
+                  ),
           ),
-
           const SizedBox(height: 80),
         ],
       ),
@@ -404,16 +424,13 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-
-    print("favoritesfavorites: $favorites");
     final pages = [
       _homePage(),
       _searchScreen,
-      FavoritesScreen(
-        
+      WishlistScreen(
         favorites: favorites,
         onRemove: (wishlistId) async {
-          await _removeFromWishlist(wishlistId); // HomeScreen-ийн API call
+          await _removeFromWishlist(wishlistId);
         },
       ),
     ];
@@ -421,28 +438,24 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
-        child: IndexedStack(
-          index: selectedBottomIndex,
-          children: pages,
-        ),
+        child: IndexedStack(index: selectedBottomIndex, children: pages),
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: selectedBottomIndex,
-        onTap: (index) {
-          setState(() {
-            selectedBottomIndex = index;
-          });
-        },
+        onTap: (index) => setState(() => selectedBottomIndex = index),
         selectedItemColor: const Color(0xFF7C3AED),
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.restaurant), label: 'Recipes'),
+            icon: Icon(Icons.restaurant),
+            label: 'Recipes',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.favorite), label: 'Favorites'),
+            icon: Icon(Icons.favorite),
+            label: 'Favorites',
+          ),
         ],
       ),
     );
