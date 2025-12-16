@@ -42,6 +42,7 @@ def search_recipes(request):
     ).distinct()
 
     serializer = RecipeSerializer(recipes, many=True, context={'request': request})
+    print(serializer.data)
     return Response(serializer.data)
 
 # 🔹 User ViewSet

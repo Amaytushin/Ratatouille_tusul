@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'RecipeDetailScreen.dart';
 import 'search_screen.dart';
 import 'favorites_screen.dart';
@@ -14,7 +15,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with TickerProviderStateMixin {
   List<String> categories = [];
   int selectedCategoryIndex = 0;
   int selectedBottomIndex = 0;
@@ -30,17 +32,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-    _controller.forward();
-
-    _loadCategories();
-    _loadRecipes();
-    _loadWishlist();
+      duration: const Duration(milliseconds: 1200),
+    )..forward();
 
     _searchScreen = const SearchScreen();
+
+    _loadCategories();
+    _loadWishlist();
   }
 
   @override
@@ -54,54 +55,77 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return prefs.getString('jwt_token');
   }
 
+  // ================== CATEGORIES ==================
   Future<void> _loadCategories() async {
     try {
       final response = await http.get(
         Uri.parse('http://127.0.0.1:8000/api/categories/'),
       );
+
       if (response.statusCode == 200) {
         List data = json.decode(response.body);
+
+        final loadedCategories = data
+            .map<String>((cat) => cat['name'] as String)
+            .toList();
+
+        // 👉 "Бүгд" category index
+        final allIndex =
+            loadedCategories.indexWhere((c) => c.toLowerCase() == 'бүгд');
+
         setState(() {
-          categories = data
-              .map<String>((cat) => cat['name'] as String)
-              .toList();
+          categories = loadedCategories;
+          selectedCategoryIndex = allIndex != -1 ? allIndex : 0;
         });
+
+        // 👉 Эхлэх үед БҮГД recipe
+        await _loadRecipes(
+          category: allIndex != -1 ? loadedCategories[allIndex] : null,
+        );
       }
     } catch (e) {
-      debugPrint("Category Error: $e");
+      debugPrint('Category error: $e');
     }
   }
 
+  // ================== RECIPES ==================
   Future<void> _loadRecipes({String? category}) async {
     setState(() => isLoadingRecipes = true);
+
     try {
       String url = 'http://127.0.0.1:8000/api/recipes/';
-      if (category != null) url += 'by_category/?category=$category';
+
+      if (category != null && category.toLowerCase() != 'бүгд') {
+        url += 'by_category/?category=$category';
+      }
+
       final response = await http.get(Uri.parse(url));
+
       if (response.statusCode == 200) {
         List data = json.decode(response.body);
+
         setState(() {
-          recipes = data
-              .map<Map<String, dynamic>>(
-                (r) => {
-                  'id': r['id'],
-                  'name': r['name'],
-                  'time': r['time_required'].toString(),
-                  'servings': r['servings'].toString(),
-                  'cuisine': r['cuisine'],
-                  'image': r['image'],
-                  'nutrition': r['nutrition'],
-                },
-              )
-              .toList();
+          recipes = data.map<Map<String, dynamic>>((r) {
+            return {
+              'id': r['id'],
+              'name': r['name'],
+              'time': r['time_required'].toString(),
+              'servings': r['servings'].toString(),
+              'cuisine': r['cuisine'],
+              'image': r['image'],
+              'nutrition': r['nutrition'],
+            };
+          }).toList();
         });
       }
     } catch (e) {
-      debugPrint('Recipe Error: $e');
+      debugPrint('Recipe error: $e');
     }
+
     setState(() => isLoadingRecipes = false);
   }
 
+  // ================== WISHLIST ==================
   Future<void> _loadWishlist() async {
     final token = await _getToken();
     if (token == null) return;
@@ -114,21 +138,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (response.statusCode == 200) {
       List data = json.decode(response.body);
       setState(() {
-        favorites = data
-            .map(
-              (item) => {
-                "wishlist_id": item["id"],
-                "id": item["recipe"]["id"],
-                "name": item["recipe"]["name"],
-                "image": item["recipe"]["image"],
-                "time": item["recipe"]["time_required"].toString(),
-              },
-            )
-            .toList();
+        favorites = data.map<Map<String, dynamic>>((item) {
+          return {
+            "wishlist_id": item["id"],
+            "id": item["recipe"]["id"],
+            "name": item["recipe"]["name"],
+            "image": item["recipe"]["image"],
+            "time": item["recipe"]["time_required"].toString(),
+          };
+        }).toList();
       });
-    } else {
-      debugPrint("Failed to load wishlist: ${response.statusCode}");
-      setState(() => favorites = []);
     }
   }
 
@@ -136,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final token = await _getToken();
     if (token == null) return;
 
-    final response = await http.post(
+    await http.post(
       Uri.parse("http://127.0.0.1:8000/api/wishlist/add/"),
       headers: {
         "Content-Type": "application/json",
@@ -145,104 +164,68 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       body: json.encode({"recipe_id": recipeId}),
     );
 
-    if (response.statusCode == 201) {
-      await _loadWishlist();
-    } else {
-      debugPrint("Failed to add to wishlist: ${response.statusCode}");
-    }
+    await _loadWishlist();
   }
 
   Future<void> _removeFromWishlist(int wishlistId) async {
     final token = await _getToken();
     if (token == null) return;
 
-    final response = await http.delete(
+    await http.delete(
       Uri.parse("http://127.0.0.1:8000/api/wishlist/remove/$wishlistId/"),
       headers: {"Authorization": "Bearer $token"},
     );
 
-    if (response.statusCode == 204) {
-      await _loadWishlist();
-    } else {
-      debugPrint("Failed to remove from wishlist: ${response.statusCode}");
-    }
+    await _loadWishlist();
   }
 
   bool _isFavorite(int recipeId) =>
-      favorites.any((item) => item["id"] == recipeId);
+      favorites.any((f) => f["id"] == recipeId);
 
   int? _getWishlistId(int recipeId) {
     final item = favorites.firstWhere(
-      (fav) => fav["id"] == recipeId,
+      (f) => f["id"] == recipeId,
       orElse: () => {},
     );
     return item["wishlist_id"];
   }
 
+  // ================== UI ==================
   Widget _modernHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF7C3AED), Color(0xFFB37FEB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(26),
           bottomRight: Radius.circular(26),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Ratatouille',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: Colors.white,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.person,
-                    color: Color(0xFF7C3AED),
-                    size: 28,
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProfileScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
+          const Text(
+            'Ratatouille',
+            style: TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
-            child: const TextField(
-              style: TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                hintText: 'Search recipes...',
-                hintStyle: TextStyle(color: Colors.white70),
-                icon: Icon(Icons.search, color: Colors.white),
-              ),
+          ),
+          CircleAvatar(
+            backgroundColor: Colors.white,
+            child: IconButton(
+              icon: const Icon(Icons.person, color: Color(0xFF7C3AED)),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ProfileScreen(),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -251,15 +234,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _recipeCard(Map<String, dynamic> recipe) {
-    final isFavorite = _isFavorite(recipe["id"]);
-    final wishlistId = _getWishlistId(recipe["id"]);
+    final isFav = _isFavorite(recipe['id']);
+    final wishlistId = _getWishlistId(recipe['id']);
 
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => RecipeDetailScreen(recipe: recipe),
+            builder: (_) => RecipeDetailScreen(recipe: recipe),
           ),
         );
       },
@@ -278,9 +261,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         child: Column(
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
-              ),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
               child: Image.network(
                 recipe['image'],
                 height: 120,
@@ -299,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: 15,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -308,30 +290,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Row(
                         children: [
-                          const Icon(
-                            Icons.timer,
-                            size: 16,
-                            color: Colors.deepPurple,
-                          ),
+                          const Icon(Icons.timer,
+                              size: 16, color: Colors.deepPurple),
                           const SizedBox(width: 4),
-                          Text('${recipe['time']} min'),
+                          Text(recipe['time']),
                         ],
                       ),
                       IconButton(
                         icon: Icon(
-                          isFavorite ? Icons.favorite : Icons.favorite_border,
+                          isFav
+                              ? Icons.favorite
+                              : Icons.favorite_border,
                           color: Colors.red,
                         ),
                         onPressed: () async {
-                          if (isFavorite) {
+                          if (isFav) {
                             await _removeFromWishlist(wishlistId!);
                           } else {
-                            await _addToWishlist(recipe["id"]);
+                            await _addToWishlist(recipe['id']);
                           }
                         },
-                      ),
+                      )
                     ],
-                  ),
+                  )
                 ],
               ),
             ),
@@ -344,42 +325,43 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _homePage() {
     return SingleChildScrollView(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _modernHeader(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
+          // Categories
           SizedBox(
-            height: 50,
+            height: 48,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final isSelected = index == selectedCategoryIndex;
+              itemBuilder: (_, index) {
+                final selected = index == selectedCategoryIndex;
                 return Padding(
-                  padding: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.only(right: 10),
                   child: GestureDetector(
                     onTap: () {
                       setState(() => selectedCategoryIndex = index);
                       _loadRecipes(category: categories[index]);
                     },
                     child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
+                      duration: const Duration(milliseconds: 250),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
+                          horizontal: 18, vertical: 10),
                       decoration: BoxDecoration(
-                        color: isSelected
+                        color: selected
                             ? const Color(0xFF7C3AED)
                             : Colors.white,
                         borderRadius: BorderRadius.circular(30),
-                        border: Border.all(color: const Color(0xFF7C3AED)),
+                        border: Border.all(
+                          color: const Color(0xFF7C3AED),
+                        ),
                       ),
                       child: Text(
                         categories[index],
                         style: TextStyle(
-                          color: isSelected
+                          color: selected
                               ? Colors.white
                               : const Color(0xFF7C3AED),
                           fontWeight: FontWeight.bold,
@@ -391,15 +373,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               },
             ),
           ),
+
           const SizedBox(height: 20),
+
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: isLoadingRecipes
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 40),
-                      child: CircularProgressIndicator(),
-                    ),
+                ? const Padding(
+                    padding: EdgeInsets.only(top: 40),
+                    child: CircularProgressIndicator(),
                   )
                 : GridView.builder(
                     shrinkWrap: true,
@@ -407,13 +389,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     itemCount: recipes.length,
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 0.72,
-                        ),
-                    itemBuilder: (context, index) =>
-                        _recipeCard(recipes[index]),
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 0.72,
+                    ),
+                    itemBuilder: (_, i) => _recipeCard(recipes[i]),
                   ),
           ),
           const SizedBox(height: 80),
@@ -429,33 +410,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _searchScreen,
       WishlistScreen(
         favorites: favorites,
-        onRemove: (wishlistId) async {
-          await _removeFromWishlist(wishlistId);
-        },
+        onRemove: _removeFromWishlist,
       ),
     ];
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
-        child: IndexedStack(index: selectedBottomIndex, children: pages),
+        child: IndexedStack(
+          index: selectedBottomIndex,
+          children: pages,
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
         currentIndex: selectedBottomIndex,
-        onTap: (index) => setState(() => selectedBottomIndex = index),
+        onTap: (i) => setState(() => selectedBottomIndex = i),
         selectedItemColor: const Color(0xFF7C3AED),
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant),
-            label: 'Recipes',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+              icon: Icon(Icons.restaurant), label: 'Recipes'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Favorites',
-          ),
+              icon: Icon(Icons.search), label: 'Search'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.favorite), label: 'Favorites'),
         ],
       ),
     );

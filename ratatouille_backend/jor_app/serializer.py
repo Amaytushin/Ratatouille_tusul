@@ -30,8 +30,8 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
-    ingredients = IngredientSerializer(many=True, read_only=True)
-    category = CategorySerializer(read_only=True)
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    ingredients = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all(), many=True)
     created_by = UserSerializer(read_only=True)
     nutrition = NutritionSerializer(read_only=True) 
     # steps = CookingStepSerializer(many=True, read_only=True)
@@ -115,4 +115,6 @@ class WishlistSerializer(serializers.ModelSerializer):
     class Meta:
         model = Wishlist
         fields = "__all__"
+
+
 

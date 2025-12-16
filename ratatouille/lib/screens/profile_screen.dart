@@ -20,7 +20,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String fixUrl(String? url) {
     if (url == null || url.isEmpty) return "";
     if (url.startsWith("http")) {
-      // cache-clear хийх зориулалттай timestamp нэмнэ
       return "$url?t=${DateTime.now().millisecondsSinceEpoch}";
     }
     return "http://127.0.0.1:8000$url?t=${DateTime.now().millisecondsSinceEpoch}";
@@ -87,140 +86,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: const Text("My Profile"),
         centerTitle: true,
         backgroundColor: Colors.deepPurple,
+        elevation: 0,
       ),
-
-      // --- BOTTOM LOGOUT + REFRESH BUTTONS ---
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(12),
-        color: Colors.white,
-        child: Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: fetchProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurple,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: const Icon(Icons.refresh, color: Colors.white),
-                label: const Text(
-                  "Refresh",
-                  style: TextStyle(fontSize: 16, color: Colors.white),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: logout,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: const Icon(Icons.logout, color: Colors.white),
-                label: const Text(
-                  "Logout",
-                  style: TextStyle(fontSize: 16, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 20),
-
-                  // --- AVATAR CENTER ---
+                  // --- AVATAR ---
                   Center(
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
                         CircleAvatar(
-                          radius: 55,
+                          radius: 60,
+                          backgroundColor: Colors.deepPurple[100],
                           backgroundImage: NetworkImage(avatar!),
-                          key: ValueKey(avatar),
                         ),
                         Positioned(
-                          bottom: -4,
-                          right: -4,
+                          bottom: 0,
+                          right: 0,
                           child: GestureDetector(
                             onTap: () => print("Change avatar clicked"),
                             child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black87,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 3,
-                                ),
-                              ),
                               padding: const EdgeInsets.all(8),
-                              child: const Icon(
-                                Icons.camera_alt,
-                                color: Colors.white,
-                                size: 18,
+                              decoration: BoxDecoration(
+                                color: Colors.deepPurple,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
                               ),
+                              child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 30),
 
                   // --- USER INFO CARD ---
                   Card(
-                    elevation: 3,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    elevation: 5,
+                    shadowColor: Colors.deepPurple.withOpacity(0.2),
                     child: Padding(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.symmetric(vertical: 25, horizontal: 20),
                       child: Column(
                         children: [
                           Row(
                             children: [
-                              const Icon(
-                                Icons.person,
-                                color: Colors.deepPurple,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                username ?? "",
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
+                              const Icon(Icons.person, color: Colors.deepPurple),
+                              const SizedBox(width: 15),
+                              Expanded(
+                                child: Text(
+                                  username ?? "",
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          const Divider(),
+                          const Divider(height: 30, thickness: 1.2),
                           Row(
                             children: [
                               const Icon(Icons.email, color: Colors.deepPurple),
-                              const SizedBox(width: 10),
-                              Text(
-                                email ?? "",
-                                style: const TextStyle(fontSize: 16),
+                              const SizedBox(width: 15),
+                              Expanded(
+                                child: Text(
+                                  email ?? "",
+                                  style: const TextStyle(fontSize: 16, color: Colors.black87),
+                                ),
                               ),
                             ],
                           ),
@@ -228,25 +174,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => EditProfileScreen()),
-                      );
-                    },
-                    child: const Text('Edit'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: EdgeInsets.symmetric(
-                        vertical: 20,
-                        horizontal: 100,
+                  const SizedBox(height: 30),
+
+                  // --- EDIT BUTTON ---
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        backgroundColor: Colors.deepPurple,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        elevation: 3,
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadiusGeometry.circular(20),
+                      child: const Text(
+                        'Edit Profile',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // --- LOGOUT + REFRESH BUTTONS ---
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: fetchProfile,
+                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          label: const Text('Refresh', style: TextStyle(color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: logout,
+                          icon: const Icon(Icons.logout, color: Colors.white),
+                          label: const Text('Logout', style: TextStyle(color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

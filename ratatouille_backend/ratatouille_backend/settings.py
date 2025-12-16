@@ -115,7 +115,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'ratatouille_db',   # Таны PostgreSQL-д үүсгэсэн датабэйс
         'USER': 'postgres',         # PostgreSQL хэрэглэгчийн нэр
-        'PASSWORD': '12345678',         # Түүний нууц үг
+        'PASSWORD': '1000',         # Түүний нууц үг
         'HOST': 'localhost',        # Серверийн хаяг (дотоод сүлжээнд бол localhost)
         'PORT': '5432',             # PostgreSQL-ийн default порт
     }

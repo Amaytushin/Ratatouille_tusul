@@ -29,7 +29,6 @@ class _SearchScreenState extends State<SearchScreen> {
     final response = await http.get(Uri.parse('http://127.0.0.1:8000/api/ingredients/'));
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
-      
       Map<int, String> categoryNames = {
         1: 'Сүү сүүн бүтээгдэхүүн',
         2: 'Хүнсний ногоо ба навчит ургамал',

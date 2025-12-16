@@ -7,10 +7,23 @@ class RecipeDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-     print("🍏 NUTRITION DATA ===> ${recipe['nutrition']}");
-    // Backend-аас ирсэн list/map-г default гаргах
-    List<dynamic> ingredients = recipe['ingredients'] ?? [];
-    List<dynamic> steps = recipe['steps'] ?? [];
+    // Debug print
+    print("🍏 NUTRITION DATA ===> ${recipe['nutrition']}");
+
+    // Safely parse backend data
+    List<dynamic> ingredientsRaw = recipe['ingredients'] ?? [];
+    List<String> ingredients = ingredientsRaw.map<String>((e) {
+      // If e is a Map with 'name', use it; else fallback to string
+      if (e is Map && e.containsKey('name')) return e['name'].toString();
+      return e.toString();
+    }).toList();
+
+    List<dynamic> stepsRaw = recipe['steps'] ?? [];
+    List<String> steps = stepsRaw.map<String>((e) {
+      if (e is Map && e.containsKey('description')) return e['description'].toString();
+      return e.toString();
+    }).toList();
+
     Map<String, dynamic> nutrition = recipe['nutrition'] ?? {};
 
     return Scaffold(
@@ -22,7 +35,7 @@ class RecipeDetailScreen extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          // 🌈 Gradient background
+          // Gradient background
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -36,7 +49,7 @@ class RecipeDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Hero Image Section
+                // Hero Image
                 Hero(
                   tag: recipe['name'] ?? '',
                   child: ClipRRect(
@@ -86,7 +99,7 @@ class RecipeDetailScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _infoChip(Icons.timer, recipe['time']?.toString() ?? ''),
+                          _infoChip(Icons.timer, recipe['time_required']?.toString() ?? ''),
                           _infoChip(Icons.people, recipe['servings']?.toString() ?? ''),
                           _infoChip(Icons.flag, recipe['cuisine'] ?? ''),
                         ],
@@ -96,28 +109,24 @@ class RecipeDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 28),
 
-                // 🍅 Ingredients Section
+                // Ingredients
                 _sectionTitle("🧂 Орц"),
-                _ingredientsList(ingredients.map<String>((e) => e['name'].toString()).toList()),
-
+                _ingredientsList(ingredients),
                 const SizedBox(height: 24),
 
-                // 🟣 Илчлэгийн дэлгэрэнгүй хэсэг
-               _sectionTitle("🍏 Илчлэг"),
-              _nutritionInfoCard({
-                "Илчлэг": nutrition['calories'] ?? 'N/A',
-                "Уураг": nutrition['protein'] ?? 'N/A',
-                "Өөх тос": nutrition['fat'] ?? 'N/A',
-                "Нүүрс ус": nutrition['carbs'] ?? 'N/A',
-              }),
-              
+                // Nutrition
+                _sectionTitle("🍏 Илчлэг"),
+                _nutritionInfoCard({
+                  "Илчлэг": nutrition['calories']?.toString() ?? 'N/A',
+                  "Уураг": nutrition['protein']?.toString() ?? 'N/A',
+                  "Өөх тос": nutrition['fat']?.toString() ?? 'N/A',
+                  "Нүүрс ус": nutrition['carbs']?.toString() ?? 'N/A',
+                }),
                 const SizedBox(height: 24),
 
-                // 🍳 Cooking Steps Section
+                // Cooking Steps
                 _sectionTitle("👨‍🍳 Хоол хийх алхамууд"),
-                _cookingSteps(
-                  steps.map<String>((item) => item['description'].toString()).toList()),
-
+                _cookingSteps(steps),
                 const SizedBox(height: 30),
               ],
             ),
@@ -127,7 +136,6 @@ class RecipeDetailScreen extends StatelessWidget {
     );
   }
 
-  // 🔹 Info Chips (time, servings, cuisine)
   Widget _infoChip(IconData icon, String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -148,7 +156,6 @@ class RecipeDetailScreen extends StatelessWidget {
     );
   }
 
-  // 🔹 Section Title
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -166,7 +173,6 @@ class RecipeDetailScreen extends StatelessWidget {
     );
   }
 
-  // 🔹 Ingredients list
   Widget _ingredientsList(List<String> ingredients) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
@@ -195,7 +201,6 @@ class RecipeDetailScreen extends StatelessWidget {
     );
   }
 
-  // 🔹 Nutrition Info Card
   Widget _nutritionInfoCard(Map<String, String> nutrients) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -212,35 +217,34 @@ class RecipeDetailScreen extends StatelessWidget {
         ],
       ),
       child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: nutrients.entries.map((entry) {
-        return Column(
-          children: [
-            Text(
-              entry.key,
-              style: const TextStyle(
-                color: Color(0xFF7C3AED),
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: nutrients.entries.map((entry) {
+          return Column(
+            children: [
+              Text(
+                entry.key,
+                style: const TextStyle(
+                  color: Color(0xFF7C3AED),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              entry.value,
-              style: const TextStyle(
-                color: Color(0xFF4A148C),
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+              const SizedBox(height: 6),
+              Text(
+                entry.value,
+                style: const TextStyle(
+                  color: Color(0xFF4A148C),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
-        );
-      }).toList(),
-    ),
-  );
-}
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
 
-  // 🔹 Cooking Steps
   Widget _cookingSteps(List<String> steps) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
@@ -272,7 +276,11 @@ class RecipeDetailScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         entry.value,
-                        style: const TextStyle(fontSize: 16, height: 1.5, color: Color(0xFF4A148C)),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          height: 1.5,
+                          color: Color(0xFF4A148C),
+                        ),
                       ),
                     ),
                   ],

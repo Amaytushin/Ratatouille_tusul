@@ -4,11 +4,11 @@ import 'RecipeDetailScreen.dart';
 
 class SearchResultScreen extends StatelessWidget {
   final List recipes;
-
   const SearchResultScreen({super.key, required this.recipes});
 
   @override
   Widget build(BuildContext context) {
+  print(recipes);
     return Scaffold(
       appBar: AppBar(
         title: const Text(
