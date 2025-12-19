@@ -7,24 +7,28 @@ class RecipeDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Debug print
-    print("🍏 NUTRITION DATA ===> ${recipe['nutrition']}");
-
-    // Safely parse backend data
+    // --- Ingredients ---
     List<dynamic> ingredientsRaw = recipe['ingredients'] ?? [];
     List<String> ingredients = ingredientsRaw.map<String>((e) {
-      // If e is a Map with 'name', use it; else fallback to string
-      if (e is Map && e.containsKey('name')) return e['name'].toString();
+      if (e is Map) {
+        // Хэрэв Map-тай ирсэн бол 'name'-ийг гаргаж авна
+        return e['name']?.toString() ?? "Unknown ingredient";
+      }
       return e.toString();
     }).toList();
 
+    // --- Steps ---
     List<dynamic> stepsRaw = recipe['steps'] ?? [];
     List<String> steps = stepsRaw.map<String>((e) {
       if (e is Map && e.containsKey('description')) return e['description'].toString();
       return e.toString();
     }).toList();
 
+    // --- Nutrition ---
     Map<String, dynamic> nutrition = recipe['nutrition'] ?? {};
+
+    // --- Created by ---
+    Map<String, dynamic>? creator = recipe['created_by'];
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -107,7 +111,49 @@ class RecipeDetailScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
+
+                // --- Creator Info ---
+                if (creator != null)
+                  Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundImage: creator['avatar'] != null
+                              ? NetworkImage(creator['avatar'])
+                              : null,
+                          backgroundColor: Colors.deepPurple[100],
+                        ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              creator['username'] ?? 'Unknown',
+                              style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF4A148C)),
+                            ),
+                            Text(
+                              creator['email'] ?? '',
+                              style: const TextStyle(
+                                  fontSize: 14, color: Color(0xFF7C3AED)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 24),
 
                 // Ingredients
                 _sectionTitle("🧂 Орц"),

@@ -69,17 +69,17 @@ class Recipe(models.Model):
     def __str__(self):
         return self.name
 
-# 🔹 Алхам алхмаар хийх
-class CookingStep(models.Model):
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='steps')
-    step_number = models.PositiveIntegerField()
-    description = models.TextField()
+#  🔹 Алхам алхмаар хийх
+# class CookingStep(models.Model):
+#     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='steps')
+#     step_number = models.PositiveIntegerField()
+#     description = models.TextField()
 
-    class Meta:
-        ordering = ['step_number']
+#     class Meta:
+#         ordering = ['step_number']
 
-    def __str__(self):
-        return f"{self.recipe.name} - Step {self.step_number}"
+#     def __str__(self):
+#         return f"{self.recipe.name} - Step {self.step_number}"
 
 # 🔹 Илчлэг
 class Nutrition(models.Model):
@@ -95,3 +95,15 @@ class Nutrition(models.Model):
 class Wishlist(models.Model):
     user = models.ForeignKey(User, on_delete = models.CASCADE, related_name="wishlistUser")
     recipe = models.ForeignKey(Recipe, on_delete= models.CASCADE, related_name="wishlistRecipe")
+
+# models.py-д нэмэх
+class RecipeRating(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ratings")
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name="ratings")
+    rating = models.PositiveSmallIntegerField()  # 1-5
+
+    class Meta:
+        unique_together = ("user", "recipe")  # Нэг хэрэглэгч нэг recipe-д зөвхөн 1 rating өгнө
+
+    def __str__(self):
+        return f"{self.user.username} - {self.recipe.name}: {self.rating}"

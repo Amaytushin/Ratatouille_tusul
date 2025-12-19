@@ -1,5 +1,5 @@
-// search_result_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'RecipeDetailScreen.dart';
 
 class SearchResultScreen extends StatelessWidget {
@@ -8,23 +8,14 @@ class SearchResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-  print(recipes);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Хайлтны үр дүн',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Хайлтны үр дүн', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF6D28D9),
         centerTitle: true,
       ),
       body: recipes.isEmpty
-          ? const Center(
-              child: Text(
-                'Жор олдсонгүй',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            )
+          ? const Center(child: Text('Жор олдсонгүй', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)))
           : Padding(
               padding: const EdgeInsets.all(16.0),
               child: GridView.builder(
@@ -37,6 +28,10 @@ class SearchResultScreen extends StatelessWidget {
                 ),
                 itemBuilder: (context, index) {
                   final recipe = recipes[index];
+                  double avgRating = recipe['avg_rating'] != null
+                      ? double.tryParse(recipe['avg_rating'].toString()) ?? 0
+                      : 0;
+
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -71,14 +66,35 @@ class SearchResultScreen extends StatelessWidget {
                                   bottomRight: Radius.circular(20),
                                 ),
                               ),
-                              child: Text(
-                                recipe['name'] ?? '',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    recipe['name'] ?? '',
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  // ⭐ Rating
+                                  Row(
+                                    children: [
+                                      RatingBarIndicator(
+                                        rating: avgRating,
+                                        itemBuilder: (context, index) => const Icon(
+                                          Icons.star,
+                                          color: Colors.amber,
+                                        ),
+                                        itemCount: 5,
+                                        itemSize: 16.0,
+                                        direction: Axis.horizontal,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(avgRating.toStringAsFixed(1),
+                                          style: const TextStyle(color: Colors.white, fontSize: 12)),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ),
