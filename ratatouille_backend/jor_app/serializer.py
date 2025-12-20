@@ -40,7 +40,10 @@ class RecipeSerializer(serializers.ModelSerializer):
     )
     nutrition = NutritionSerializer(required=False)
     created_by = UserSerializer(read_only=True)
-    average_rating = serializers.SerializerMethodField()
+
+    average_rating = serializers.FloatField(
+        source='avg_rating', read_only=True
+    )
 
     class Meta:
         model = Recipe
@@ -59,6 +62,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'created_at',
             'average_rating',
         ]
+
 
     def create(self, validated_data):
         nutrition_data = validated_data.pop("nutrition", None)

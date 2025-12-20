@@ -27,6 +27,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
     serializer_class = RecipeSerializer
     parser_classes = [MultiPartParser, FormParser]
 
+    def get_queryset(self):
+        qs = Recipe.objects.all().annotate(
+            avg_rating=Avg('ratings__rating')
+        )
+
+        order = self.request.query_params.get('order')
+
+        if order == 'rating':
+            qs = qs.order_by('-avg_rating')
+        elif order == 'new':
+            qs = qs.order_by('-created_at')
+        elif order == 'old':
+            qs = qs.order_by('created_at')
+        else:
+            qs = qs.order_by('-avg_rating', '-created_at')
+
+        return qs
+
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             return [IsAuthenticated()]
@@ -181,10 +199,8 @@ def remove_wishlist(request, pk):
     
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def rate_recipe(request):
-    recipe_id = request.data.get("recipe_id")
+def rate_recipe(request, recipe_id):
     rating = request.data.get("rating")
-
     recipe = Recipe.objects.get(id=recipe_id)
 
     obj, _ = RecipeRating.objects.update_or_create(
@@ -194,3 +210,4 @@ def rate_recipe(request):
     )
 
     return Response({"rating": obj.rating})
+

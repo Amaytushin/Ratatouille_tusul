@@ -26,6 +26,7 @@ class _HomeScreenState extends State<HomeScreen>
   List<Map<String, dynamic>> favorites = [];
 
   bool isLoadingRecipes = false;
+  Map<int, double> userRatings = {}; // recipeId -> rating
 
   late final AnimationController _controller;
   late final SearchScreen _searchScreen;
@@ -39,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen>
     )..forward();
 
     _searchScreen = const SearchScreen();
-
     _loadCategories();
     _loadWishlist();
   }
@@ -64,16 +64,20 @@ class _HomeScreenState extends State<HomeScreen>
 
       if (response.statusCode == 200) {
         List data = json.decode(response.body);
-        final loadedCategories = data.map<String>((cat) => cat['name'] as String).toList();
+        final loadedCategories =
+            data.map<String>((cat) => cat['name'] as String).toList();
 
-        final allIndex = loadedCategories.indexWhere((c) => c.toLowerCase() == 'бүгд');
+        final allIndex =
+            loadedCategories.indexWhere((c) => c.toLowerCase() == 'бүгд');
 
         setState(() {
           categories = loadedCategories;
           selectedCategoryIndex = allIndex != -1 ? allIndex : 0;
         });
 
-        await _loadRecipes(category: allIndex != -1 ? loadedCategories[allIndex] : null);
+        await _loadRecipes(
+            category:
+                allIndex != -1 ? loadedCategories[allIndex] : null);
       }
     } catch (e) {
       debugPrint('Category error: $e');
@@ -86,9 +90,10 @@ class _HomeScreenState extends State<HomeScreen>
 
     try {
       String url = 'http://127.0.0.1:8000/api/recipes/';
-
       if (category != null && category.toLowerCase() != 'бүгд') {
         url += 'by_category/?category=$category';
+      } else {
+        url += '?order=rating';
       }
 
       final response = await http.get(Uri.parse(url));
@@ -174,13 +179,18 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isFavorite(int recipeId) => favorites.any((f) => f["id"] == recipeId);
 
   int? _getWishlistId(int recipeId) {
-    final item = favorites.firstWhere((f) => f["id"] == recipeId, orElse: () => {});
+    final item =
+        favorites.firstWhere((f) => f["id"] == recipeId, orElse: () => {});
     return item["wishlist_id"];
   }
 
   Future<void> _submitRating(int recipeId, double rating) async {
     final token = await _getToken();
     if (token == null) return;
+
+    setState(() {
+      userRatings[recipeId] = rating;
+    });
 
     final response = await http.post(
       Uri.parse('http://127.0.0.1:8000/api/recipes/$recipeId/rate/'),
@@ -191,11 +201,16 @@ class _HomeScreenState extends State<HomeScreen>
       body: jsonEncode({'rating': rating}),
     );
 
-    if (response.statusCode == 200) {
-      debugPrint('Rating submitted successfully');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⭐ Үнэлгээ амжилттай')),
+      );
       await _loadRecipes(category: categories[selectedCategoryIndex]);
     } else {
-      debugPrint('Error submitting rating: ${response.statusCode}');
+      debugPrint(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Үнэлгээ илгээхэд алдаа гарлаа')),
+      );
     }
   }
 
@@ -271,7 +286,8 @@ class _HomeScreenState extends State<HomeScreen>
         child: Column(
           children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(20)),
               child: Image.network(
                 recipe['image'],
                 height: 120,
@@ -295,12 +311,13 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(height: 6),
 
-                  // Average rating
+                  // ⭐ Average rating дээд талд
                   Row(
                     children: [
                       RatingBarIndicator(
                         rating: avgRating,
-                        itemBuilder: (context, _) => const Icon(Icons.star, color: Colors.amber),
+                        itemBuilder: (context, _) =>
+                            const Icon(Icons.star, color: Colors.amber),
                         itemCount: 5,
                         itemSize: 18,
                       ),
@@ -310,33 +327,38 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(height: 6),
 
-                  // User rating input
+                  // User rating input доор
                   RatingBar.builder(
-                    initialRating: 0,
-                    minRating: 1,
-                    direction: Axis.horizontal,
+                    initialRating: userRatings[recipe['id']] ?? 0,
+                    minRating: 0,
                     allowHalfRating: true,
                     itemCount: 5,
-                    itemBuilder: (context, _) => const Icon(Icons.star, color: Colors.purple),
-                    onRatingUpdate: (rating) async {
-                      await _submitRating(recipe['id'], rating);
+                    itemSize: 22,
+                    itemBuilder: (context, _) =>
+                        const Icon(Icons.star, color: Colors.deepPurple),
+                    onRatingUpdate: (rating) {
+                      if (userRatings[recipe['id']] != rating) {
+                        _submitRating(recipe['id'], rating);
+                      }
                     },
-                    itemSize: 20,
                   ),
-
                   const SizedBox(height: 6),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.timer, size: 16, color: Colors.deepPurple),
+                          const Icon(Icons.timer,
+                              size: 16, color: Colors.deepPurple),
                           const SizedBox(width: 4),
                           Text(recipe['time']),
                         ],
                       ),
                       IconButton(
-                        icon: Icon(isFav ? Icons.favorite : Icons.favorite_border, color: Colors.red),
+                        icon: Icon(
+                            isFav ? Icons.favorite : Icons.favorite_border,
+                            color: Colors.red),
                         onPressed: () async {
                           if (isFav) {
                             await _removeFromWishlist(wishlistId!);
@@ -380,7 +402,8 @@ class _HomeScreenState extends State<HomeScreen>
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 10),
                     decoration: BoxDecoration(
                       color: selected ? const Color(0xFF7C3AED) : Colors.white,
                       borderRadius: BorderRadius.circular(30),
@@ -409,7 +432,8 @@ class _HomeScreenState extends State<HomeScreen>
                 ? const Center(child: CircularProgressIndicator())
                 : GridView.builder(
                     itemCount: recipes.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       mainAxisSpacing: 16,
                       crossAxisSpacing: 16,
@@ -449,10 +473,12 @@ class _HomeScreenState extends State<HomeScreen>
         selectedItemColor: const Color(0xFF7C3AED),
         unselectedItemColor: Colors.grey,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.restaurant), label: 'Recipes'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.restaurant), label: 'Recipes'),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite), label: 'Favorites'),
-          BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline),label: 'Add'),
+          BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'Add'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.favorite), label: 'Favorite'),
         ],
       ),
     );

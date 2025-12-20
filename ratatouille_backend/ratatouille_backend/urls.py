@@ -20,7 +20,8 @@ urlpatterns = [
     path('api/wishlist/my/', my_wishlist),
     path('api/wishlist/add/', add_wishlist),
     path('api/wishlist/remove/<int:pk>/', remove_wishlist),
-    path('api/recipes/rate/', rate_recipe),
+    path('api/recipes/<int:recipe_id>/rate/', rate_recipe),
+
 
     path('auth/', include('djoser.urls')),
     path('auth/', include('djoser.urls.jwt')),

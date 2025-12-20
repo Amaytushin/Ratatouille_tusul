@@ -21,6 +21,7 @@ class AddRecipeScreen extends StatefulWidget {
 
 class _AddRecipeScreenState extends State<AddRecipeScreen> {
   final _formKey = GlobalKey<FormState>();
+
   String name = '';
   String description = '';
   String timeRequired = '';
@@ -53,24 +54,33 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
   }
 
   Future<void> _loadIngredients() async {
-    final response = await http.get(Uri.parse('http://127.0.0.1:8000/api/ingredients/'));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      setState(() {
-        allIngredients = List<Ingredient>.from(
-          data.map((i) => Ingredient(id: i['id'], name: i['name']))
-        );
-      });
+    try {
+      final response =
+          await http.get(Uri.parse('http://127.0.0.1:8000/api/ingredients/'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          allIngredients = List<Ingredient>.from(
+              data.map((i) => Ingredient(id: i['id'], name: i['name'])));
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading ingredients: $e');
     }
   }
 
   Future<void> _loadCategories() async {
-    final response = await http.get(Uri.parse('http://127.0.0.1:8000/api/categories/'));
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      setState(() {
-        categories = List<Map<String, dynamic>>.from(data);
-      });
+    try {
+      final response =
+          await http.get(Uri.parse('http://127.0.0.1:8000/api/categories/'));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          categories = List<Map<String, dynamic>>.from(data);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading categories: $e');
     }
   }
 
@@ -91,12 +101,14 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (categoryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Category сонгоно уу')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Category сонгоно уу')));
       return;
     }
 
     if (selectedIngredients.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingredients сонгоно уу')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Ingredients сонгоно уу')));
       return;
     }
 
@@ -136,109 +148,224 @@ class _AddRecipeScreenState extends State<AddRecipeScreen> {
 
     var response = await request.send();
     if (response.statusCode == 201 || response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recipe амжилттай нэмэгдлээ')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Recipe амжилттай нэмэгдлээ')));
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Алдаа гарлаа: ${response.statusCode}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Алдаа гарлаа: ${response.statusCode}')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Recipe')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Name'),
-                onChanged: (val) => name = val,
-                validator: (val) => val == null || val.isEmpty ? 'Name required' : null,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Description'),
-                onChanged: (val) => description = val,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Time Required'),
-                onChanged: (val) => timeRequired = val,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Servings'),
-                keyboardType: TextInputType.number,
-                onChanged: (val) => servings = int.tryParse(val) ?? 1,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Cuisine'),
-                onChanged: (val) => cuisine = val,
-              ),
-              const SizedBox(height: 16),
-              // Category
-              DropdownButtonFormField<int>(
-                value: categoryId,
-                decoration: const InputDecoration(labelText: 'Category'),
-                items: categories
-                    .map((c) => DropdownMenuItem<int>(
-                          value: c['id'] as int,
-                          child: Text(c['name']),
-                        ))
-                    .toList(),
-                onChanged: (val) => setState(() => categoryId = val),
-                validator: (val) => val == null ? 'Select category' : null,
-              ),
-              const SizedBox(height: 16),
-              // Ingredients MultiSelect
-              MultiSelectDialogField<Ingredient>(
-                items: allIngredients
-                    .map((e) => MultiSelectItem<Ingredient>(e, e.name))
-                    .toList(),
-                title: const Text('Ingredients'),
-                buttonText: const Text('Select Ingredients'),
-                listType: MultiSelectListType.LIST,
-                onConfirm: (values) {
-                  selectedIngredients = values;
-                },
-                chipDisplay: MultiSelectChipDisplay(
-                  onTap: (value) {
-                    selectedIngredients.remove(value);
-                    setState(() {});
-                  },
+      appBar: AppBar(
+        title: const Text('Add Recipe'),
+        backgroundColor: const Color(0xFF7C3AED),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                // Name
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (val) => name = val,
+                  validator: (val) =>
+                      val == null || val.isEmpty ? 'Name required' : null,
                 ),
-              ),
-              const SizedBox(height: 16),
-              // Nutrition
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Калор'),
-                onChanged: (val) => calories = val,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Уураг'),
-                onChanged: (val) => protein = val,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Өөх тос'),
-                onChanged: (val) => fat = val,
-              ),
-              TextFormField(
-                decoration: const InputDecoration(labelText: 'Нүүрс ус'),
-                onChanged: (val) => carbs = val,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _pickImage,
-                child: const Text('Select Image'),
-              ),
-              if (imageBytes != null)
-                Image.memory(imageBytes!, height: 120, width: 120, fit: BoxFit.cover),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _submitRecipe,
-                child: const Text('Add Recipe'),
-              ),
-            ],
+                const SizedBox(height: 16),
+
+                // Description
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                  onChanged: (val) => description = val,
+                ),
+                const SizedBox(height: 16),
+
+                // Time & Servings & Cuisine
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Time Required',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (val) => timeRequired = val,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Servings',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (val) => servings = int.tryParse(val) ?? 1,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  decoration: const InputDecoration(
+                    labelText: 'Cuisine',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (val) => cuisine = val,
+                ),
+                const SizedBox(height: 16),
+
+                // Category
+                DropdownButtonFormField<int>(
+                  value: categoryId,
+                  decoration: const InputDecoration(
+                    labelText: 'Category',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: categories
+                      .map((c) => DropdownMenuItem<int>(
+                            value: c['id'] as int,
+                            child: Text(c['name']),
+                          ))
+                      .toList(),
+                  onChanged: (val) => setState(() => categoryId = val),
+                  validator: (val) => val == null ? 'Select category' : null,
+                ),
+                const SizedBox(height: 16),
+
+                // Ingredients MultiSelect
+                MultiSelectDialogField<Ingredient>(
+                  items: allIngredients
+                      .map((e) => MultiSelectItem<Ingredient>(e, e.name))
+                      .toList(),
+                  title: const Text('Ingredients'),
+                  buttonText: const Text('Select Ingredients'),
+                  listType: MultiSelectListType.LIST,
+                  onConfirm: (values) {
+                    setState(() {
+                      selectedIngredients = values;
+                    });
+                  },
+                  chipDisplay: MultiSelectChipDisplay(
+                    onTap: (value) {
+                      setState(() {
+                        selectedIngredients.remove(value);
+                      });
+                    },
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Nutrition Fields
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Калор',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (val) => calories = val,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Уураг',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (val) => protein = val,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Өөх тос',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (val) => fat = val,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        decoration: const InputDecoration(
+                          labelText: 'Нүүрс ус',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (val) => carbs = val,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Image Picker
+                ElevatedButton.icon(
+                  onPressed: _pickImage,
+                  icon: const Icon(Icons.image),
+                  label: const Text('Select Image'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C3AED),
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (imageBytes != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.memory(
+                      imageBytes!,
+                      height: 150,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                const SizedBox(height: 24),
+
+                // Submit Button
+                ElevatedButton(
+                  onPressed: _submitRecipe,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14.0),
+                    child: Text(
+                      'Add Recipe',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C3AED),
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
